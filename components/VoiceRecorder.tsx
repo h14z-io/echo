@@ -128,21 +128,40 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
           : true
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       // Setup audio context for visualization
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
       source.connect(analyser);
-      
+
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
 
       // Start visualization
       drawWaveform();
 
-      const mediaRecorder = new MediaRecorder(stream);
+      // Determine best supported MIME type
+      let options: MediaRecorderOptions = {};
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/aac',
+        'audio/mpeg',
+        'audio/ogg;codecs=opus'
+      ];
+
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          options = { mimeType };
+          console.log('Using MIME type:', mimeType);
+          break;
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -153,7 +172,9 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        // Use the actual MIME type from the MediaRecorder
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         setRecordedBlob(audioBlob);
         setShowActions(true);
 
@@ -253,7 +274,9 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       setRecordingTime(0);
     } catch (err) {
       console.error('Error processing audio:', err);
-      setError('Failed to process audio recording.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to process audio: ${errorMessage}`);
+      setShowActions(true); // Keep actions visible so user can retry
     } finally {
       setIsTranscribing(false);
     }
@@ -287,7 +310,9 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       setRecordingTime(0);
     } catch (err) {
       console.error('Error saving audio:', err);
-      setError('Failed to save audio recording.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to save audio: ${errorMessage}`);
+      setShowActions(true); // Keep actions visible so user can retry
     }
   };
 

@@ -30,18 +30,52 @@ export const audioUtils = {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
       const url = URL.createObjectURL(blob);
-      
-      audio.addEventListener('loadedmetadata', () => {
+      let resolved = false;
+
+      const cleanup = () => {
         URL.revokeObjectURL(url);
-        resolve(audio.duration);
-      });
-      
-      audio.addEventListener('error', () => {
-        URL.revokeObjectURL(url);
-        reject(new Error('Failed to load audio'));
-      });
-      
-      audio.src = url;
+        audio.removeEventListener('loadedmetadata', onLoaded);
+        audio.removeEventListener('error', onError);
+        audio.src = '';
+      };
+
+      const onLoaded = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        // If duration is NaN or Infinity, return 0 as fallback
+        const duration = isFinite(audio.duration) ? audio.duration : 0;
+        resolve(duration);
+      };
+
+      const onError = (e: Event) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        console.error('Audio loading error:', e);
+        // Don't reject, just resolve with 0 duration
+        resolve(0);
+      };
+
+      // Timeout after 5 seconds
+      const timeout = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        console.warn('Audio duration loading timed out');
+        resolve(0);
+      }, 5000);
+
+      audio.addEventListener('loadedmetadata', onLoaded);
+      audio.addEventListener('error', onError);
+
+      try {
+        audio.src = url;
+        audio.load(); // Explicitly load on Safari
+      } catch (err) {
+        clearTimeout(timeout);
+        onError(err as Event);
+      }
     });
   },
 
