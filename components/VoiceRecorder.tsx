@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { VoiceNote } from '@/types';
 import { audioUtils } from '@/lib/audio';
 import { transcribeAudio } from '@/lib/gemini';
-import { Mic, Square, Loader2, Pause, Play, Check, RotateCcw, FileText } from 'lucide-react';
+import { Mic, Square, Loader2, Check, RotateCcw, FileText } from 'lucide-react';
 
 interface VoiceRecorderProps {
   onNewNote: (note: VoiceNote) => void;
@@ -129,21 +129,28 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      // Setup audio context for visualization (with Safari compatibility)
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        source.connect(analyser);
+      // Setup audio context for visualization (skip on iOS Safari)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-        audioContextRef.current = audioContext;
-        analyserRef.current = analyser;
+      if (!isIOS || !isSafari) {
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 2048;
+          source.connect(analyser);
 
-        // Start visualization
-        drawWaveform();
-      } catch (audioCtxErr) {
-        console.warn('AudioContext failed, continuing without visualization:', audioCtxErr);
+          audioContextRef.current = audioContext;
+          analyserRef.current = analyser;
+
+          // Start visualization
+          drawWaveform();
+        } catch (audioCtxErr) {
+          console.warn('AudioContext failed, continuing without visualization:', audioCtxErr);
+        }
+      } else {
+        console.log('Skipping AudioContext on iOS Safari for better compatibility');
       }
 
       // Use default MediaRecorder without specifying MIME type

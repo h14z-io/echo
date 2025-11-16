@@ -27,54 +27,87 @@ export const audioUtils = {
 
   // Get audio duration from blob
   getAudioDuration: (blob: Blob): Promise<number> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const audio = new Audio();
       const url = URL.createObjectURL(blob);
       let resolved = false;
+      let timeoutId: NodeJS.Timeout;
 
       const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
         URL.revokeObjectURL(url);
         audio.removeEventListener('loadedmetadata', onLoaded);
+        audio.removeEventListener('durationchange', onDurationChange);
+        audio.removeEventListener('canplay', onCanPlay);
         audio.removeEventListener('error', onError);
         audio.src = '';
       };
 
-      const onLoaded = () => {
+      const finalize = (duration: number) => {
         if (resolved) return;
         resolved = true;
         cleanup();
-        // If duration is NaN or Infinity, return 0 as fallback
-        const duration = isFinite(audio.duration) ? audio.duration : 0;
-        resolve(duration);
+        const validDuration = isFinite(duration) && duration > 0 ? duration : 0;
+        console.log('Audio duration resolved:', validDuration);
+        resolve(validDuration);
+      };
+
+      const onLoaded = () => {
+        console.log('Metadata loaded, duration:', audio.duration);
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          finalize(audio.duration);
+        }
+      };
+
+      const onDurationChange = () => {
+        console.log('Duration changed:', audio.duration);
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          finalize(audio.duration);
+        }
+      };
+
+      const onCanPlay = () => {
+        console.log('Can play, duration:', audio.duration);
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          finalize(audio.duration);
+        }
       };
 
       const onError = (e: Event) => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
         console.error('Audio loading error:', e);
-        // Don't reject, just resolve with 0 duration
-        resolve(0);
+        finalize(0);
       };
 
-      // Timeout after 5 seconds
-      const timeout = setTimeout(() => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
+      // Timeout after 10 seconds
+      timeoutId = setTimeout(() => {
         console.warn('Audio duration loading timed out');
-        resolve(0);
-      }, 5000);
+        finalize(0);
+      }, 10000);
 
+      // Multiple event listeners for better Safari compatibility
       audio.addEventListener('loadedmetadata', onLoaded);
+      audio.addEventListener('durationchange', onDurationChange);
+      audio.addEventListener('canplay', onCanPlay);
       audio.addEventListener('error', onError);
+
+      // Preload metadata
+      audio.preload = 'metadata';
 
       try {
         audio.src = url;
-        audio.load(); // Explicitly load on Safari
+        // Force load on Safari
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch((err) => {
+            console.log('Auto-play prevented (expected):', err);
+          });
+        }
       } catch (err) {
-        clearTimeout(timeout);
-        onError(err as Event);
+        console.error('Error setting audio source:', err);
+        finalize(0);
       }
     });
   },
