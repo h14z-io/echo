@@ -129,39 +129,26 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      // Setup audio context for visualization
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
-      source.connect(analyser);
+      // Setup audio context for visualization (with Safari compatibility)
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
 
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
 
-      // Start visualization
-      drawWaveform();
-
-      // Determine best supported MIME type
-      let options: MediaRecorderOptions = {};
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/aac',
-        'audio/mpeg',
-        'audio/ogg;codecs=opus'
-      ];
-
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          options = { mimeType };
-          console.log('Using MIME type:', mimeType);
-          break;
-        }
+        // Start visualization
+        drawWaveform();
+      } catch (audioCtxErr) {
+        console.warn('AudioContext failed, continuing without visualization:', audioCtxErr);
       }
 
-      const mediaRecorder = new MediaRecorder(stream, options);
+      // Use default MediaRecorder without specifying MIME type
+      // This allows the browser to choose its preferred format
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -172,9 +159,10 @@ export default function VoiceRecorder({ onNewNote, apiKey }: VoiceRecorderProps)
       };
 
       mediaRecorder.onstop = async () => {
-        // Use the actual MIME type from the MediaRecorder
-        const mimeType = mediaRecorder.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        // Let the browser determine the best MIME type
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mediaRecorder.mimeType || 'audio/webm'
+        });
         setRecordedBlob(audioBlob);
         setShowActions(true);
 
