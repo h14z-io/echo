@@ -1,19 +1,40 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import BottomNav from '@/components/BottomNav'
+import Providers from '@/components/Providers'
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'Echō - Voice Notes with AI Transcription',
-  description: 'Capture and transcribe your voice notes with AI-powered automatic transcription',
-};
+  title: 'Echo - Voice Notes with AI',
+  description:
+    'Capture and transcribe your voice notes with AI-powered intelligence',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#09090b',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en" className="dark">
-      <body>{children}</body>
+      <body
+        className={`${inter.variable} font-sans bg-zinc-950 text-zinc-50 antialiased`}
+      >
+        <Providers>
+          <main className="mx-auto min-h-dvh max-w-2xl pb-20">{children}</main>
+          <BottomNav />
+        </Providers>
+      </body>
     </html>
-  );
+  )
 }
