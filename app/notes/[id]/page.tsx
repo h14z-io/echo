@@ -35,6 +35,7 @@ export default function NoteDetailPage() {
   const [copiedTranscript, setCopiedTranscript] = useState(false)
   const [showFolderModal, setShowFolderModal] = useState(false)
   const [showInsightModal, setShowInsightModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const menuRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -100,12 +101,8 @@ export default function NoteDetailPage() {
 
   const handleDelete = useCallback(async () => {
     if (!note) return
-    const confirmed = window.confirm('Are you sure you want to delete this note?')
-    if (confirmed) {
-      await db.notes.delete(note.id)
-      router.push('/notes')
-    }
-    setMenuOpen(false)
+    await db.notes.delete(note.id)
+    router.push('/notes')
   }, [note, router])
 
   const handleTagsChange = useCallback(async (newTags: string[]) => {
@@ -215,7 +212,7 @@ export default function NoteDetailPage() {
                   {t('noteDetail.addToInsight')}
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => { setMenuOpen(false); setShowDeleteConfirm(true) }}
                   className="w-full px-4 py-2.5 text-left text-sm text-red-400 transition-colors hover:bg-zinc-800"
                 >
                   {t('noteDetail.delete')}
@@ -462,6 +459,47 @@ export default function NoteDetailPage() {
           onAdded={(insightId) => setNote({ ...note, insightIds: [...note.insightIds, insightId], updatedAt: Date.now() })}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
+              role="dialog"
+              aria-modal="true"
+            >
+              <h3 className="text-base font-semibold text-zinc-50 mb-1">{t('noteDetail.deleteConfirm')}</h3>
+              <p className="text-sm text-zinc-400 mb-5">{t('settings.deleteConfirm')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                >
+                  {t('common.delete')}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 rounded-lg bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

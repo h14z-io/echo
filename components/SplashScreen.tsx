@@ -64,6 +64,11 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
             Voice notes with AI
           </p>
 
+          {/* Version */}
+          <p className="text-[10px] text-zinc-700 mt-6 animate-splash-tagline">
+            v1.0.0
+          </p>
+
           {/* Bottom accent line */}
           <div className="absolute bottom-12 w-12 h-0.5 rounded-full bg-accent-600 animate-splash-accent" />
         </div>
