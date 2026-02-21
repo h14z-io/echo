@@ -7,7 +7,7 @@ import { db } from '@/lib/db'
 import { generateId } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
 import FolderCard from '@/components/FolderCard'
-import type { Folder, VoiceNote } from '@/types'
+import type { Folder } from '@/types'
 
 const PRESET_COLORS = [
   '#BB2649',
@@ -42,13 +42,6 @@ export default function FoldersPage() {
   }, [fetchData])
 
   const handleDelete = useCallback(async (folder: Folder) => {
-    // Unlink notes from this folder
-    const allNotes = await db.notes.getAll()
-    for (const note of allNotes) {
-      if (note.folderId === folder.id) {
-        await db.notes.put({ ...note, folderId: null, updatedAt: Date.now() })
-      }
-    }
     await db.folders.delete(folder.id)
     fetchData()
   }, [fetchData])

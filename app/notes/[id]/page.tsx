@@ -62,7 +62,8 @@ export default function NoteDetailPage() {
     const interval = setInterval(async () => {
       const updated = await db.notes.get(id)
       if (updated && updated.status !== 'transcribing') {
-        setNote(updated)
+        // Preserve the original audioBlob reference to avoid blob URL invalidation
+        setNote((prev) => prev ? { ...updated, audioBlob: prev.audioBlob } : updated)
         setEditTitle(updated.title)
       }
     }, 2000)

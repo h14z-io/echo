@@ -24,6 +24,7 @@ export default function RecordingPage() {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const animationRef = useRef<number | null>(null)
+  const initedRef = useRef(false)
 
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current
@@ -66,6 +67,9 @@ export default function RecordingPage() {
   }, [])
 
   const startRecording = useCallback(async () => {
+    if (initedRef.current) return
+    initedRef.current = true
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream

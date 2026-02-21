@@ -26,17 +26,6 @@ export default function InsightsPage() {
   }, [])
 
   const handleDelete = useCallback(async (insight: Insight) => {
-    // Unlink notes from this insight
-    const allNotes = await db.notes.getAll()
-    for (const note of allNotes) {
-      if (note.insightIds.includes(insight.id)) {
-        await db.notes.put({
-          ...note,
-          insightIds: note.insightIds.filter((id) => id !== insight.id),
-          updatedAt: Date.now(),
-        })
-      }
-    }
     await db.insights.delete(insight.id)
     setInsights((prev) => prev.filter((i) => i.id !== insight.id))
   }, [])
