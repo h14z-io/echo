@@ -21,11 +21,11 @@ import {
 import { db } from '@/lib/db'
 import { formatTimestamp, cn, generateId } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
-import { generateInsightAnalysis, askInsightQuestion, generateMindMap } from '@/lib/gemini'
+import { generateInsightAnalysis, askInsightQuestion, generateDiagram } from '@/lib/gemini'
 import { compressImage, blobToBase64 } from '@/lib/image'
-import MindMapViewer from '@/components/MindMapViewer'
-import ImageUpload from '@/components/ImageUpload'
-import type { Insight, VoiceNote, InsightContent, InsightImage, MindMapVersion } from '@/types'
+import { renderMermaid, svgToBlob } from '@/lib/mermaid-theme'
+import InsightAssets from '@/components/InsightAssets'
+import type { Insight, VoiceNote, InsightContent, InsightImage } from '@/types'
 
 export default function InsightDetailPage() {
   const { t, locale } = useI18n()
@@ -38,7 +38,7 @@ export default function InsightDetailPage() {
   const [images, setImages] = useState<InsightImage[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [generatingMindMap, setGeneratingMindMap] = useState(false)
+  const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showAddNotes, setShowAddNotes] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -49,11 +49,9 @@ export default function InsightDetailPage() {
   const [copied, setCopied] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
-  // Normalize insight to ensure new fields exist (backward compat)
   const normalizeInsight = (data: Insight): Insight => ({
     ...data,
     imageIds: data.imageIds || [],
-    mindMapVersions: data.mindMapVersions || [],
   })
 
   const loadInsight = useCallback(async () => {
@@ -73,7 +71,6 @@ export default function InsightDetailPage() {
       setNotes([])
     }
 
-    // Load images
     const insightImages = await db.insightImages.getByInsight(id)
     setImages(insightImages.sort((a, b) => a.createdAt - b.createdAt))
 
@@ -99,14 +96,60 @@ export default function InsightDetailPage() {
     setEditingName(false)
   }
 
-  // Helper: get image base64 data for API calls
   const getImageDataForApi = async (): Promise<{ base64: string; mimeType: string }[]> => {
+    const regularImages = images.filter((img) => !img.mermaidCode)
     const imageData: { base64: string; mimeType: string }[] = []
-    for (const img of images) {
+    for (const img of regularImages) {
       const base64 = await blobToBase64(img.blob)
       imageData.push({ base64, mimeType: img.mimeType })
     }
     return imageData
+  }
+
+  // Save a mermaid diagram as an InsightImage asset
+  const saveDiagramAsAsset = async (mermaidCode: string, label?: string) => {
+    if (!insight) return
+    const diagramType = mermaidCode.split('\n')[0].split(' ')[0]
+    const name = label || `${diagramType}-${new Date().toLocaleTimeString()}`
+
+    // Render to PNG for thumbnail
+    let blob: Blob
+    let width = 800
+    let height = 600
+    try {
+      const result = await renderMermaid(mermaidCode)
+      if (result.svg) {
+        blob = await svgToBlob(result.svg)
+      } else {
+        // Fallback: store a tiny placeholder
+        blob = new Blob([''], { type: 'image/png' })
+      }
+    } catch {
+      blob = new Blob([''], { type: 'image/png' })
+    }
+
+    const imageId = generateId()
+    const insightImage: InsightImage = {
+      id: imageId,
+      insightId: insight.id,
+      blob,
+      name,
+      mimeType: 'image/png',
+      width,
+      height,
+      mermaidCode,
+      createdAt: Date.now(),
+    }
+    await db.insightImages.put(insightImage)
+
+    const updated: Insight = {
+      ...insight,
+      imageIds: [...insight.imageIds, imageId],
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => [...prev, insightImage])
   }
 
   const handleGenerate = async () => {
@@ -121,13 +164,13 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      if (noteData.length === 0 && images.length === 0) {
+      if (noteData.length === 0 && images.filter((i) => !i.mermaidCode).length === 0) {
         alert(t('insights.noContentToAnalyze'))
         setGenerating(false)
         return
       }
 
-      const imageData = images.length > 0 ? await getImageDataForApi() : undefined
+      const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
       const result = await generateInsightAnalysis(noteData, locale, imageData)
 
       const generatedContent: InsightContent = {
@@ -157,9 +200,9 @@ export default function InsightDetailPage() {
     setGenerating(false)
   }
 
-  const handleGenerateMindMap = async () => {
+  const handleGenerateDiagram = async () => {
     if (!insight || (notes.length === 0 && images.length === 0)) return
-    setGeneratingMindMap(true)
+    setGeneratingDiagram(true)
     try {
       const noteData = notes
         .filter((n) => n.transcription)
@@ -169,29 +212,15 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      const imageData = images.length > 0 ? await getImageDataForApi() : undefined
-      const result = await generateMindMap(noteData, locale, imageData)
+      const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
+      const result = await generateDiagram(noteData, locale, imageData)
 
-      const newVersion: MindMapVersion = {
-        id: generateId(),
-        mermaidCode: result.mermaidCode,
-        noteIds: [...insight.noteIds],
-        imageIds: [...insight.imageIds],
-        createdAt: Date.now(),
-      }
-
-      const updated: Insight = {
-        ...insight,
-        mindMapVersions: [...insight.mindMapVersions, newVersion],
-        updatedAt: Date.now(),
-      }
-      await db.insights.put(updated)
-      setInsight(updated)
+      await saveDiagramAsAsset(result.mermaidCode)
     } catch (err) {
-      console.error('Mind map generation failed:', err)
-      alert('Failed to generate mind map. Check your API key and try again.')
+      console.error('Diagram generation failed:', err)
+      alert('Failed to generate diagram. Check your API key and try again.')
     }
-    setGeneratingMindMap(false)
+    setGeneratingDiagram(false)
   }
 
   const handleAddImages = async (files: File[]) => {
@@ -252,32 +281,43 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      const answer = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale)
+      const result = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale)
 
-      const customSection = {
-        prompt: askInput.trim(),
-        content: answer,
-        generatedAt: Date.now(),
+      // Save any mermaid diagrams as assets
+      if (result.mermaidDiagrams && result.mermaidDiagrams.length > 0) {
+        for (const code of result.mermaidDiagrams) {
+          await saveDiagramAsAsset(code, askInput.trim().substring(0, 40))
+        }
       }
 
-      const existingSections = insight.generatedContent?.customSections || []
-      const generatedContent: InsightContent = insight.generatedContent
-        ? { ...insight.generatedContent, customSections: [...existingSections, customSection] }
-        : {
-            summary: '',
-            keyPoints: [],
-            actionItems: [],
-            timeline: [],
-            customSections: [customSection],
-          }
+      // Save text content as custom section (if there's text)
+      if (result.content) {
+        const customSection = {
+          prompt: askInput.trim(),
+          content: result.content,
+          generatedAt: Date.now(),
+        }
 
-      const updated: Insight = {
-        ...insight,
-        generatedContent,
-        updatedAt: Date.now(),
+        const existingSections = insight.generatedContent?.customSections || []
+        const generatedContent: InsightContent = insight.generatedContent
+          ? { ...insight.generatedContent, customSections: [...existingSections, customSection] }
+          : {
+              summary: '',
+              keyPoints: [],
+              actionItems: [],
+              timeline: [],
+              customSections: [customSection],
+            }
+
+        const updated: Insight = {
+          ...insight,
+          generatedContent,
+          updatedAt: Date.now(),
+        }
+        await db.insights.put(updated)
+        setInsight(updated)
       }
-      await db.insights.put(updated)
-      setInsight(updated)
+
       setAskInput('')
     } catch (err) {
       console.error('Question failed:', err)
@@ -342,7 +382,7 @@ export default function InsightDetailPage() {
   if (!insight) return null
 
   const gc = insight.generatedContent
-  const hasContent = notes.length > 0 || images.length > 0
+  const hasContent = notes.length > 0 || images.filter((i) => !i.mermaidCode).length > 0
 
   return (
     <div className="px-4 pt-4 pb-20 space-y-6">
@@ -496,11 +536,14 @@ export default function InsightDetailPage() {
         )}
       </div>
 
-      {/* Images Section */}
-      <ImageUpload
+      {/* Assets Section (images + diagrams) */}
+      <InsightAssets
         images={images}
-        onAdd={handleAddImages}
+        onAddFiles={handleAddImages}
         onRemove={handleRemoveImage}
+        onGenerateDiagram={handleGenerateDiagram}
+        generatingDiagram={generatingDiagram}
+        hasContent={hasContent}
       />
 
       {/* Generated Content */}
@@ -526,7 +569,6 @@ export default function InsightDetailPage() {
         </div>
       ) : gc ? (
         <div className="space-y-4">
-          {/* Summary */}
           {gc.summary && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -540,7 +582,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Key Points */}
           {gc.keyPoints.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -562,7 +603,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Action Items */}
           {gc.actionItems.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -584,7 +624,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Timeline */}
           {gc.timeline.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -614,7 +653,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Custom Sections */}
           {gc.customSections.map((section, i) => (
             <motion.div
               key={i}
@@ -650,37 +688,32 @@ export default function InsightDetailPage() {
         </div>
       )}
 
-      {/* Mind Map Section */}
-      <MindMapViewer
-        versions={insight.mindMapVersions}
-        generating={generatingMindMap}
-        onGenerate={handleGenerateMindMap}
-        hasContent={hasContent}
-      />
-
       {/* Ask Anything */}
       {insight.noteIds.length > 0 && (
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={t('insights.askAnything')}
-            value={askInput}
-            onChange={(e) => setAskInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !askingQuestion && handleAsk()}
-            disabled={askingQuestion}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none disabled:opacity-50"
-          />
-          <button
-            onClick={handleAsk}
-            disabled={!askInput.trim() || askingQuestion}
-            className="p-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-          >
-            {askingQuestion ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Send size={16} />
-            )}
-          </button>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder={t('insights.askAnything')}
+              value={askInput}
+              onChange={(e) => setAskInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !askingQuestion && handleAsk()}
+              disabled={askingQuestion}
+              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none disabled:opacity-50"
+            />
+            <button
+              onClick={handleAsk}
+              disabled={!askInput.trim() || askingQuestion}
+              className="p-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              {askingQuestion ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} />
+              )}
+            </button>
+          </div>
+          <p className="text-[10px] text-zinc-600 px-1">{t('insights.askHint')}</p>
         </div>
       )}
 
@@ -808,7 +841,6 @@ function AddNotesModal({
         className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-t-2xl flex flex-col"
         style={{ maxHeight: '80vh' }}
       >
-        {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-800">
           <h2 className="text-lg font-semibold text-zinc-50">{t('insights.addNotes')}</h2>
           <button
@@ -820,7 +852,6 @@ function AddNotesModal({
           </button>
         </div>
 
-        {/* Search */}
         <div className="p-4 border-b border-zinc-800">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -835,7 +866,6 @@ function AddNotesModal({
           </div>
         </div>
 
-        {/* Notes List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
           {loading ? (
             <div className="space-y-2">
@@ -882,7 +912,6 @@ function AddNotesModal({
           )}
         </div>
 
-        {/* Save Button */}
         <div className="p-4 border-t border-zinc-800">
           <button
             onClick={() => onSave(selectedIds)}

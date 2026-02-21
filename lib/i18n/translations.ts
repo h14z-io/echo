@@ -142,21 +142,17 @@ const en: NestedStrings = {
     noNotesAvailable: 'No notes available',
     addNotesToGenerate: 'Add notes to generate insights',
     noContentToAnalyze: 'No content to analyze',
-    // Images
-    images: 'Images',
-    addImages: 'Upload',
-    camera: 'Camera',
-    uploadImages: 'Tap to upload images',
+    // Assets
+    assets: 'Assets',
+    uploadImages: 'Upload images',
     compressing: 'Compressing images...',
-    // Mind Map
-    mindMap: 'Mind Map',
-    generateMindMap: 'Generate Mind Map',
-    generatingMindMap: 'Generating mind map...',
-    newVersion: 'New version',
+    // Diagrams
+    generateDiagram: 'Generate diagram',
+    generatingDiagram: 'Generating diagram...',
     copyMermaidCode: 'Copy Mermaid code',
     downloadImage: 'Download as image',
-    mindMapRenderError: 'Could not render the mind map',
-    addContentForMindMap: 'Add notes or images to generate a mind map',
+    diagramRenderError: 'Could not render the diagram',
+    askHint: 'You can also ask for diagrams, e.g. "give me a flowchart of..."',
   },
   settings: {
     title: 'Settings',
@@ -316,21 +312,17 @@ const es: NestedStrings = {
     noNotesAvailable: 'No hay notas disponibles',
     addNotesToGenerate: 'Agrega notas para generar análisis',
     noContentToAnalyze: 'No hay contenido para analizar',
-    // Images
-    images: 'Imágenes',
-    addImages: 'Subir',
-    camera: 'Cámara',
-    uploadImages: 'Toca para subir imágenes',
+    // Assets
+    assets: 'Recursos',
+    uploadImages: 'Subir imágenes',
     compressing: 'Comprimiendo imágenes...',
-    // Mind Map
-    mindMap: 'Mapa Mental',
-    generateMindMap: 'Generar Mapa Mental',
-    generatingMindMap: 'Generando mapa mental...',
-    newVersion: 'Nueva versión',
+    // Diagrams
+    generateDiagram: 'Generar diagrama',
+    generatingDiagram: 'Generando diagrama...',
     copyMermaidCode: 'Copiar código Mermaid',
     downloadImage: 'Descargar como imagen',
-    mindMapRenderError: 'No se pudo renderizar el mapa mental',
-    addContentForMindMap: 'Agrega notas o imágenes para generar un mapa mental',
+    diagramRenderError: 'No se pudo renderizar el diagrama',
+    askHint: 'También puedes pedir diagramas, ej. "dame un diagrama de flujo de..."',
   },
   settings: {
     title: 'Configuración',
@@ -490,21 +482,17 @@ const pt: NestedStrings = {
     noNotesAvailable: 'Nenhuma nota disponível',
     addNotesToGenerate: 'Adicione notas para gerar análises',
     noContentToAnalyze: 'Nenhum conteúdo para analisar',
-    // Images
-    images: 'Imagens',
-    addImages: 'Enviar',
-    camera: 'Câmera',
-    uploadImages: 'Toque para enviar imagens',
+    // Assets
+    assets: 'Recursos',
+    uploadImages: 'Enviar imagens',
     compressing: 'Comprimindo imagens...',
-    // Mind Map
-    mindMap: 'Mapa Mental',
-    generateMindMap: 'Gerar Mapa Mental',
-    generatingMindMap: 'Gerando mapa mental...',
-    newVersion: 'Nova versão',
+    // Diagrams
+    generateDiagram: 'Gerar diagrama',
+    generatingDiagram: 'Gerando diagrama...',
     copyMermaidCode: 'Copiar código Mermaid',
     downloadImage: 'Baixar como imagem',
-    mindMapRenderError: 'Não foi possível renderizar o mapa mental',
-    addContentForMindMap: 'Adicione notas ou imagens para gerar um mapa mental',
+    diagramRenderError: 'Não foi possível renderizar o diagrama',
+    askHint: 'Você também pode pedir diagramas, ex. "me dê um fluxograma de..."',
   },
   settings: {
     title: 'Configurações',

@@ -54,27 +54,32 @@ export async function generateInsightAnalysis(
   return response.json()
 }
 
-export interface MindMapResult {
+export interface DiagramResult {
   mermaidCode: string
 }
 
-export async function generateMindMap(
+export async function generateDiagram(
   notes: { date: number; title: string; transcription: string }[],
   locale = 'en',
   images?: { base64: string; mimeType: string }[]
-): Promise<MindMapResult> {
-  const response = await fetch('/api/insights/mindmap', {
+): Promise<DiagramResult> {
+  const response = await fetch('/api/insights/diagram', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes, images, locale }),
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Mind map generation failed' }))
-    throw new Error(error.error || 'Mind map generation failed')
+    const error = await response.json().catch(() => ({ error: 'Diagram generation failed' }))
+    throw new Error(error.error || 'Diagram generation failed')
   }
 
   return response.json()
+}
+
+export interface AskResult {
+  content: string
+  mermaidDiagrams: string[]
 }
 
 export async function askInsightQuestion(
@@ -82,7 +87,7 @@ export async function askInsightQuestion(
   insightName: string,
   userPrompt: string,
   locale = 'en'
-): Promise<string> {
+): Promise<AskResult> {
   const response = await fetch('/api/insights/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -94,6 +99,5 @@ export async function askInsightQuestion(
     throw new Error(error.error || 'Question failed')
   }
 
-  const data = await response.json()
-  return data.content
+  return response.json()
 }

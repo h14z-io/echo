@@ -33,14 +33,7 @@ export interface InsightImage {
   mimeType: string
   width: number
   height: number
-  createdAt: number
-}
-
-export interface MindMapVersion {
-  id: string
-  mermaidCode: string
-  noteIds: string[]
-  imageIds: string[]
+  mermaidCode?: string
   createdAt: number
 }
 
@@ -49,7 +42,6 @@ export interface Insight {
   name: string
   noteIds: string[]
   imageIds: string[]
-  mindMapVersions: MindMapVersion[]
   generatedContent: InsightContent | null
   lastGeneratedAt: number | null
   createdAt: number
