@@ -41,6 +41,18 @@ export default function FoldersPage() {
     fetchData()
   }, [fetchData])
 
+  const handleDelete = useCallback(async (folder: Folder) => {
+    // Unlink notes from this folder
+    const allNotes = await db.notes.getAll()
+    for (const note of allNotes) {
+      if (note.folderId === folder.id) {
+        await db.notes.put({ ...note, folderId: null, updatedAt: Date.now() })
+      }
+    }
+    await db.folders.delete(folder.id)
+    fetchData()
+  }, [fetchData])
+
   const handleCreate = async () => {
     const trimmed = newName.trim()
     if (!trimmed) return
@@ -77,6 +89,7 @@ export default function FoldersPage() {
             folder={folder}
             noteCount={noteCounts[folder.id] ?? 0}
             index={index}
+            onDelete={handleDelete}
           />
         ))}
 
