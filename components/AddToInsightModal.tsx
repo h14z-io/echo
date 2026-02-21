@@ -63,6 +63,8 @@ export default function AddToInsightModal({
       id: generateId(),
       name,
       noteIds: [],
+      imageIds: [],
+      mindMapVersions: [],
       generatedContent: null,
       lastGeneratedAt: null,
       createdAt: Date.now(),

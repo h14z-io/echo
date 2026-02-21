@@ -38,6 +38,8 @@ export default function InsightsPage() {
       id: generateId(),
       name,
       noteIds: [],
+      imageIds: [],
+      mindMapVersions: [],
       generatedContent: null,
       lastGeneratedAt: null,
       createdAt: Date.now(),

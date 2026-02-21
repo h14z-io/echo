@@ -1,13 +1,14 @@
-import type { VoiceNote, Folder, Insight } from '@/types'
+import type { VoiceNote, Folder, Insight, InsightImage } from '@/types'
 
 const DB_NAME = 'echo-v2'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const STORES = {
   notes: 'notes',
   folders: 'folders',
   insights: 'insights',
   settings: 'settings',
+  insightImages: 'insightImages',
 } as const
 
 let dbPromise: Promise<IDBDatabase> | null = null
@@ -44,6 +45,13 @@ function getDB(): Promise<IDBDatabase> {
 
         if (!database.objectStoreNames.contains(STORES.settings)) {
           database.createObjectStore(STORES.settings, { keyPath: 'key' })
+        }
+
+        // v2: Add insightImages store
+        if (!database.objectStoreNames.contains(STORES.insightImages)) {
+          const imagesStore = database.createObjectStore(STORES.insightImages, { keyPath: 'id' })
+          imagesStore.createIndex('insightId', 'insightId')
+          imagesStore.createIndex('createdAt', 'createdAt')
         }
       }
 
@@ -222,9 +230,23 @@ export const db = {
             })
           }
         }
+        // Delete associated images
+        const images = await getAllByIndex<InsightImage>(STORES.insightImages, 'insightId', id)
+        for (const image of images) {
+          await remove(STORES.insightImages, image.id)
+        }
       }
       await remove(STORES.insights, id)
     },
+  },
+
+  insightImages: {
+    getAll: () => getAll<InsightImage>(STORES.insightImages),
+    get: (id: string) => getById<InsightImage>(STORES.insightImages, id),
+    put: (image: InsightImage) => put(STORES.insightImages, image),
+    delete: (id: string) => remove(STORES.insightImages, id),
+    getByInsight: (insightId: string) =>
+      getAllByIndex<InsightImage>(STORES.insightImages, 'insightId', insightId),
   },
 
   settings: {

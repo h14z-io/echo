@@ -37,17 +37,41 @@ export interface InsightResult {
 
 export async function generateInsightAnalysis(
   notes: { date: number; title: string; transcription: string }[],
-  locale = 'en'
+  locale = 'en',
+  images?: { base64: string; mimeType: string }[]
 ): Promise<InsightResult> {
   const response = await fetch('/api/insights/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, locale }),
+    body: JSON.stringify({ notes, images, locale }),
   })
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Generation failed' }))
     throw new Error(error.error || 'Generation failed')
+  }
+
+  return response.json()
+}
+
+export interface MindMapResult {
+  mermaidCode: string
+}
+
+export async function generateMindMap(
+  notes: { date: number; title: string; transcription: string }[],
+  locale = 'en',
+  images?: { base64: string; mimeType: string }[]
+): Promise<MindMapResult> {
+  const response = await fetch('/api/insights/mindmap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes, images, locale }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Mind map generation failed' }))
+    throw new Error(error.error || 'Mind map generation failed')
   }
 
   return response.json()

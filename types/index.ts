@@ -25,10 +25,31 @@ export interface Folder {
   createdAt: number
 }
 
+export interface InsightImage {
+  id: string
+  insightId: string
+  blob: Blob
+  name: string
+  mimeType: string
+  width: number
+  height: number
+  createdAt: number
+}
+
+export interface MindMapVersion {
+  id: string
+  mermaidCode: string
+  noteIds: string[]
+  imageIds: string[]
+  createdAt: number
+}
+
 export interface Insight {
   id: string
   name: string
   noteIds: string[]
+  imageIds: string[]
+  mindMapVersions: MindMapVersion[]
   generatedContent: InsightContent | null
   lastGeneratedAt: number | null
   createdAt: number

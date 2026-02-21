@@ -19,10 +19,13 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { db } from '@/lib/db'
-import { formatTimestamp, cn } from '@/lib/utils'
+import { formatTimestamp, cn, generateId } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
-import { generateInsightAnalysis, askInsightQuestion } from '@/lib/gemini'
-import type { Insight, VoiceNote, InsightContent } from '@/types'
+import { generateInsightAnalysis, askInsightQuestion, generateMindMap } from '@/lib/gemini'
+import { compressImage, blobToBase64 } from '@/lib/image'
+import MindMapViewer from '@/components/MindMapViewer'
+import ImageUpload from '@/components/ImageUpload'
+import type { Insight, VoiceNote, InsightContent, InsightImage, MindMapVersion } from '@/types'
 
 export default function InsightDetailPage() {
   const { t, locale } = useI18n()
@@ -32,8 +35,10 @@ export default function InsightDetailPage() {
 
   const [insight, setInsight] = useState<Insight | null>(null)
   const [notes, setNotes] = useState<VoiceNote[]>([])
+  const [images, setImages] = useState<InsightImage[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [generatingMindMap, setGeneratingMindMap] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showAddNotes, setShowAddNotes] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -44,21 +49,34 @@ export default function InsightDetailPage() {
   const [copied, setCopied] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
+  // Normalize insight to ensure new fields exist (backward compat)
+  const normalizeInsight = (data: Insight): Insight => ({
+    ...data,
+    imageIds: data.imageIds || [],
+    mindMapVersions: data.mindMapVersions || [],
+  })
+
   const loadInsight = useCallback(async () => {
     const data = await db.insights.get(id)
     if (!data) {
       router.push('/insights')
       return
     }
-    setInsight(data)
-    setNameValue(data.name)
+    const normalized = normalizeInsight(data)
+    setInsight(normalized)
+    setNameValue(normalized.name)
 
-    if (data.noteIds.length > 0) {
+    if (normalized.noteIds.length > 0) {
       const allNotes = await db.notes.getAll()
-      setNotes(allNotes.filter((n) => data.noteIds.includes(n.id)))
+      setNotes(allNotes.filter((n) => normalized.noteIds.includes(n.id)))
     } else {
       setNotes([])
     }
+
+    // Load images
+    const insightImages = await db.insightImages.getByInsight(id)
+    setImages(insightImages.sort((a, b) => a.createdAt - b.createdAt))
+
     setLoading(false)
   }, [id, router])
 
@@ -81,8 +99,18 @@ export default function InsightDetailPage() {
     setEditingName(false)
   }
 
+  // Helper: get image base64 data for API calls
+  const getImageDataForApi = async (): Promise<{ base64: string; mimeType: string }[]> => {
+    const imageData: { base64: string; mimeType: string }[] = []
+    for (const img of images) {
+      const base64 = await blobToBase64(img.blob)
+      imageData.push({ base64, mimeType: img.mimeType })
+    }
+    return imageData
+  }
+
   const handleGenerate = async () => {
-    if (!insight || notes.length === 0) return
+    if (!insight || (notes.length === 0 && images.length === 0)) return
     setGenerating(true)
     try {
       const noteData = notes
@@ -93,13 +121,14 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      if (noteData.length === 0) {
-        alert('No transcribed notes to analyze')
+      if (noteData.length === 0 && images.length === 0) {
+        alert(t('insights.noContentToAnalyze'))
         setGenerating(false)
         return
       }
 
-      const result = await generateInsightAnalysis(noteData, locale)
+      const imageData = images.length > 0 ? await getImageDataForApi() : undefined
+      const result = await generateInsightAnalysis(noteData, locale, imageData)
 
       const generatedContent: InsightContent = {
         summary: result.summary,
@@ -126,6 +155,89 @@ export default function InsightDetailPage() {
       alert('Failed to generate insights. Check your API key and try again.')
     }
     setGenerating(false)
+  }
+
+  const handleGenerateMindMap = async () => {
+    if (!insight || (notes.length === 0 && images.length === 0)) return
+    setGeneratingMindMap(true)
+    try {
+      const noteData = notes
+        .filter((n) => n.transcription)
+        .map((n) => ({
+          date: n.createdAt,
+          title: n.title || n.defaultTitle,
+          transcription: n.transcription!,
+        }))
+
+      const imageData = images.length > 0 ? await getImageDataForApi() : undefined
+      const result = await generateMindMap(noteData, locale, imageData)
+
+      const newVersion: MindMapVersion = {
+        id: generateId(),
+        mermaidCode: result.mermaidCode,
+        noteIds: [...insight.noteIds],
+        imageIds: [...insight.imageIds],
+        createdAt: Date.now(),
+      }
+
+      const updated: Insight = {
+        ...insight,
+        mindMapVersions: [...insight.mindMapVersions, newVersion],
+        updatedAt: Date.now(),
+      }
+      await db.insights.put(updated)
+      setInsight(updated)
+    } catch (err) {
+      console.error('Mind map generation failed:', err)
+      alert('Failed to generate mind map. Check your API key and try again.')
+    }
+    setGeneratingMindMap(false)
+  }
+
+  const handleAddImages = async (files: File[]) => {
+    if (!insight) return
+    const newImages: InsightImage[] = []
+    const newImageIds: string[] = []
+
+    for (const file of files) {
+      const compressed = await compressImage(file)
+      const imageId = generateId()
+      const insightImage: InsightImage = {
+        id: imageId,
+        insightId: insight.id,
+        blob: compressed.blob,
+        name: file.name,
+        mimeType: compressed.mimeType,
+        width: compressed.width,
+        height: compressed.height,
+        createdAt: Date.now(),
+      }
+      await db.insightImages.put(insightImage)
+      newImages.push(insightImage)
+      newImageIds.push(imageId)
+    }
+
+    const updated: Insight = {
+      ...insight,
+      imageIds: [...insight.imageIds, ...newImageIds],
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => [...prev, ...newImages])
+  }
+
+  const handleRemoveImage = async (imageId: string) => {
+    if (!insight) return
+    await db.insightImages.delete(imageId)
+    const updated: Insight = {
+      ...insight,
+      imageIds: insight.imageIds.filter((id) => id !== imageId),
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => prev.filter((img) => img.id !== imageId))
   }
 
   const handleAsk = async () => {
@@ -230,6 +342,7 @@ export default function InsightDetailPage() {
   if (!insight) return null
 
   const gc = insight.generatedContent
+  const hasContent = notes.length > 0 || images.length > 0
 
   return (
     <div className="px-4 pt-4 pb-20 space-y-6">
@@ -383,6 +496,13 @@ export default function InsightDetailPage() {
         )}
       </div>
 
+      {/* Images Section */}
+      <ImageUpload
+        images={images}
+        onAdd={handleAddImages}
+        onRemove={handleRemoveImage}
+      />
+
       {/* Generated Content */}
       {generating ? (
         <div className="space-y-3">
@@ -514,7 +634,7 @@ export default function InsightDetailPage() {
         </div>
       ) : (
         <div className="py-8">
-          {notes.length > 0 ? (
+          {hasContent ? (
             <button
               onClick={handleGenerate}
               className="w-full bg-accent-600 hover:bg-accent-700 text-white rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -529,6 +649,14 @@ export default function InsightDetailPage() {
           )}
         </div>
       )}
+
+      {/* Mind Map Section */}
+      <MindMapViewer
+        versions={insight.mindMapVersions}
+        generating={generatingMindMap}
+        onGenerate={handleGenerateMindMap}
+        hasContent={hasContent}
+      />
 
       {/* Ask Anything */}
       {insight.noteIds.length > 0 && (
