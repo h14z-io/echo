@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MoreVertical, FolderOpen, Lightbulb, Trash2 } from 'lucide-react'
 import { cn, formatDuration, formatTimestamp, getTagColor } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n'
 import type { VoiceNote } from '@/types'
 
 interface NoteCardProps {
@@ -15,9 +16,11 @@ interface NoteCardProps {
 }
 
 export default function NoteCard({ note, compact = false, index = 0, onAction }: NoteCardProps) {
+  const { t } = useI18n()
   const summaryFirstLine = note.summary?.split('\n')[0] ?? null
   const visibleTags = note.tags.slice(0, 3)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,15 +28,23 @@ export default function NoteCard({ note, compact = false, index = 0, onAction }:
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false)
+        setConfirmDelete(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
-  const handleAction = (action: 'folder' | 'insight' | 'delete') => {
+  const handleAction = (action: 'folder' | 'insight') => {
     setMenuOpen(false)
+    setConfirmDelete(false)
     onAction?.(action, note)
+  }
+
+  const handleDelete = () => {
+    setMenuOpen(false)
+    setConfirmDelete(false)
+    onAction?.('delete', note)
   }
 
   return (
@@ -98,7 +109,7 @@ export default function NoteCard({ note, compact = false, index = 0, onAction }:
         {onAction && (
           <div ref={menuRef} className="absolute top-3 right-2">
             <button
-              onClick={(e) => { e.preventDefault(); setMenuOpen(!menuOpen) }}
+              onClick={(e) => { e.preventDefault(); setMenuOpen(!menuOpen); setConfirmDelete(false) }}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
             >
               <MoreVertical size={16} />
@@ -113,27 +124,49 @@ export default function NoteCard({ note, compact = false, index = 0, onAction }:
                   transition={{ duration: 0.12 }}
                   className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 py-1 shadow-xl"
                 >
-                  <button
-                    onClick={() => handleAction('folder')}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
-                  >
-                    <FolderOpen size={15} className="text-sky-400" />
-                    Folder
-                  </button>
-                  <button
-                    onClick={() => handleAction('insight')}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
-                  >
-                    <Lightbulb size={15} className="text-amber-400" />
-                    Insight
-                  </button>
-                  <button
-                    onClick={() => handleAction('delete')}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-zinc-800"
-                  >
-                    <Trash2 size={15} />
-                    Delete
-                  </button>
+                  {confirmDelete ? (
+                    <div className="px-3 py-2 space-y-2">
+                      <p className="text-xs text-zinc-400">{t('noteDetail.deleteConfirm')}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleDelete}
+                          className="flex-1 rounded-lg bg-red-600 px-2 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700"
+                        >
+                          {t('noteDetail.delete')}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(false)}
+                          className="flex-1 rounded-lg bg-zinc-800 px-2 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleAction('folder')}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+                      >
+                        <FolderOpen size={15} className="text-sky-400" />
+                        {t('noteDetail.moveToFolder')}
+                      </button>
+                      <button
+                        onClick={() => handleAction('insight')}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+                      >
+                        <Lightbulb size={15} className="text-amber-400" />
+                        {t('noteDetail.addToInsight')}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(true)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-zinc-800"
+                      >
+                        <Trash2 size={15} />
+                        {t('noteDetail.delete')}
+                      </button>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

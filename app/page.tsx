@@ -39,14 +39,11 @@ export default function HomePage() {
       setActionNote(note)
       setShowInsightModal(true)
     } else if (action === 'delete') {
-      const confirmed = window.confirm(t('noteDetail.deleteConfirm') || 'Delete this note?')
-      if (confirmed) {
-        db.notes.delete(note.id).then(() => {
-          setRecentNotes((prev) => prev.filter((n) => n.id !== note.id))
-        })
-      }
+      db.notes.delete(note.id).then(() => {
+        setRecentNotes((prev) => prev.filter((n) => n.id !== note.id))
+      })
     }
-  }, [t])
+  }, [])
 
   return (
     <div className="px-4 pt-4 space-y-6">
