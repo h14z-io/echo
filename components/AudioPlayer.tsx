@@ -86,6 +86,7 @@ export default function AudioPlayer({ audioBlob, duration }: AudioPlayerProps) {
     <div className="flex items-center gap-3">
       <button
         onClick={togglePlayback}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-600 text-white transition-colors hover:bg-accent-700 active:scale-95"
       >
         {isPlaying ? (
@@ -114,6 +115,7 @@ export default function AudioPlayer({ audioBlob, duration }: AudioPlayerProps) {
 
       <button
         onClick={handleDownload}
+        aria-label="Download recording"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
         title="Download"
       >

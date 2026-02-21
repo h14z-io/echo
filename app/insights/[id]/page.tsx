@@ -237,6 +237,7 @@ export default function InsightDetailPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push('/insights')}
+          aria-label="Go back"
           className="p-1 -ml-1 text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -272,6 +273,7 @@ export default function InsightDetailPage() {
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
+            aria-label="More options"
             className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             <MoreVertical size={20} />
@@ -683,6 +685,7 @@ function AddNotesModal({
           <h2 className="text-lg font-semibold text-zinc-50">{t('insights.addNotes')}</h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             <X size={20} />
@@ -696,6 +699,7 @@ function AddNotesModal({
             <input
               type="text"
               placeholder={t('insights.searchNotes')}
+              aria-label={t('insights.searchNotes')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none"

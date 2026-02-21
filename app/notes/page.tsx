@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { db } from '@/lib/db'
 import { cn, getTagColor } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
 import NoteCard from '@/components/NoteCard'
-import MoveToFolderModal from '@/components/MoveToFolderModal'
-import AddToInsightModal from '@/components/AddToInsightModal'
 import type { VoiceNote } from '@/types'
+
+const MoveToFolderModal = dynamic(() => import('@/components/MoveToFolderModal'))
+const AddToInsightModal = dynamic(() => import('@/components/AddToInsightModal'))
 
 export default function NotesPage() {
   const { t } = useI18n()
@@ -93,6 +95,7 @@ export default function NotesPage() {
         <input
           type="text"
           placeholder={t('notes.search')}
+          aria-label={t('notes.search')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none transition-colors"

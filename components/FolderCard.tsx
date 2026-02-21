@@ -66,6 +66,7 @@ export default function FolderCard({ folder, noteCount, index = 0, onDelete }: F
           <div ref={menuRef} className="absolute top-3 right-2">
             <button
               onClick={(e) => { e.preventDefault(); setMenuOpen(!menuOpen); setConfirmDelete(false) }}
+              aria-label="Folder options"
               className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
             >
               <MoreVertical size={16} />

@@ -55,6 +55,7 @@ export default function TagChips({ tags, onChange }: TagChipsProps) {
             {tag}
             <button
               onClick={() => handleRemove(index)}
+              aria-label="Remove tag"
               className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/10"
             >
               <X size={12} />
@@ -77,6 +78,7 @@ export default function TagChips({ tags, onChange }: TagChipsProps) {
       ) : (
         <button
           onClick={startAdding}
+          aria-label="Add tag"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
         >
           <Plus size={14} />

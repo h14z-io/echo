@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Settings } from 'lucide-react'
 import { db } from '@/lib/db'
 import RecordButton from '@/components/RecordButton'
 import NoteCard from '@/components/NoteCard'
-import MoveToFolderModal from '@/components/MoveToFolderModal'
-import AddToInsightModal from '@/components/AddToInsightModal'
 import { useI18n } from '@/lib/i18n'
 import type { VoiceNote } from '@/types'
+
+const MoveToFolderModal = dynamic(() => import('@/components/MoveToFolderModal'))
+const AddToInsightModal = dynamic(() => import('@/components/AddToInsightModal'))
 
 export default function HomePage() {
   const { t } = useI18n()
@@ -50,11 +53,12 @@ export default function HomePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="Echo" className="w-8 h-8 rounded-lg" />
+          <Image src="/logo.jpg" alt="Echo" width={32} height={32} className="rounded-lg" priority />
           <h1 className="text-xl font-semibold text-zinc-50">{t('home.title')}</h1>
         </div>
         <Link
           href="/settings"
+          aria-label="Settings"
           className="p-2 -mr-2 text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           <Settings size={20} strokeWidth={1.5} />
@@ -88,7 +92,7 @@ export default function HomePage() {
         ) : recentNotes.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm text-zinc-500">{t('home.noRecordings')}</p>
-            <p className="text-xs text-zinc-600 mt-1">
+            <p className="text-xs text-zinc-500 mt-1">
               {t('home.startHint')}
             </p>
           </div>

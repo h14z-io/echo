@@ -57,6 +57,7 @@ export default function InsightsPage() {
         <h1 className="text-xl font-semibold text-zinc-50">{t('insights.title')}</h1>
         <button
           onClick={() => setShowModal(true)}
+          aria-label="Create insight"
           className="p-2 -mr-2 text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           <Plus size={20} strokeWidth={1.5} />
@@ -117,6 +118,7 @@ export default function InsightsPage() {
               <h2 className="text-lg font-semibold text-zinc-50">{t('insights.newInsight')}</h2>
               <button
                 onClick={() => { setShowModal(false); setNewName('') }}
+                aria-label="Close"
                 className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors"
               >
                 <X size={20} />
@@ -125,6 +127,7 @@ export default function InsightsPage() {
             <input
               type="text"
               placeholder={t('insights.insightName')}
+              aria-label={t('insights.insightName')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -189,6 +192,7 @@ function InsightCard({ insight, index, onDelete }: { insight: Insight; index: nu
         <div ref={menuRef} className="absolute top-3 right-2">
           <button
             onClick={(e) => { e.preventDefault(); setMenuOpen(!menuOpen); setConfirmDelete(false) }}
+            aria-label="Insight options"
             className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
           >
             <MoreVertical size={16} />

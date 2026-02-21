@@ -62,12 +62,15 @@ export default function MoveToFolderModal({
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="folder-modal-title"
         className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl mx-4"
         style={{ maxHeight: '60vh' }}
       >
         <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-zinc-50">{t('noteDetail.selectFolder')}</h2>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors">
+          <h2 id="folder-modal-title" className="text-lg font-semibold text-zinc-50">{t('noteDetail.selectFolder')}</h2>
+          <button onClick={onClose} aria-label="Close" className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors">
             <X size={20} />
           </button>
         </div>

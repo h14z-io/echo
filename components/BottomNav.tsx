@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
 import { Home, FileText, FolderOpen, Lightbulb } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
@@ -40,18 +39,18 @@ export default function BottomNav() {
               )}
             >
               {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -top-px left-2 right-2 h-0.5 rounded-full bg-accent-500"
-                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                <div
+                  className="absolute -top-px left-2 right-2 h-0.5 rounded-full bg-accent-500 transition-all duration-300 ease-out"
                 />
               )}
-              <motion.div
-                animate={{ scale: isActive ? 1 : 0.9 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              <div
+                className={cn(
+                  'transition-transform duration-200 ease-out',
+                  isActive ? 'scale-100' : 'scale-90'
+                )}
               >
                 <Icon size={20} strokeWidth={isActive ? 2 : 1.5} />
-              </motion.div>
+              </div>
               <span>{t(labelKey)}</span>
             </Link>
           )

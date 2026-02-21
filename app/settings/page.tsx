@@ -88,6 +88,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/"
+            aria-label="Go back"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-50"
           >
             <ArrowLeft size={20} />

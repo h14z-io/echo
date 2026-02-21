@@ -69,6 +69,7 @@ export default function FoldersPage() {
         <h1 className="text-xl font-semibold text-zinc-50">{t('folders.title')}</h1>
         <button
           onClick={() => setShowModal(true)}
+          aria-label="Create folder"
           className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
         >
           <Plus size={18} className="text-zinc-300" />
@@ -121,6 +122,7 @@ export default function FoldersPage() {
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
+                  aria-label="Close"
                   className="p-1 rounded-lg hover:bg-zinc-800 transition-colors"
                 >
                   <X size={16} className="text-zinc-500" />
@@ -130,6 +132,7 @@ export default function FoldersPage() {
               <input
                 type="text"
                 placeholder={t('folders.folderName')}
+                aria-label={t('folders.folderName')}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}

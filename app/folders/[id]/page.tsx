@@ -59,6 +59,7 @@ export default function FolderDetailPage() {
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => router.push('/folders')}
+            aria-label="Go back"
             className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors shrink-0"
           >
             <ArrowLeft size={20} className="text-zinc-400" />
@@ -93,6 +94,7 @@ export default function FolderDetailPage() {
         <div className="relative shrink-0">
           <button
             onClick={() => setShowMenu(!showMenu)}
+            aria-label="More options"
             className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <MoreVertical size={18} className="text-zinc-400" />
@@ -141,7 +143,7 @@ export default function FolderDetailPage() {
             className="text-center py-12"
           >
             <p className="text-sm text-zinc-500">{t('folders.noNotes')}</p>
-            <p className="text-xs text-zinc-600 mt-1">
+            <p className="text-xs text-zinc-500 mt-1">
               {t('folders.addFromDetail')}
             </p>
           </motion.div>

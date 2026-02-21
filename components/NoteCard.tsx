@@ -110,6 +110,7 @@ export default function NoteCard({ note, compact = false, index = 0, onAction }:
           <div ref={menuRef} className="absolute top-3 right-2">
             <button
               onClick={(e) => { e.preventDefault(); setMenuOpen(!menuOpen); setConfirmDelete(false) }}
+              aria-label="Note options"
               className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
             >
               <MoreVertical size={16} />

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, MoreVertical, ChevronDown, Loader2, Copy, Check, FolderOpen, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
@@ -9,11 +10,12 @@ import { db } from '@/lib/db'
 import { processRecording } from '@/lib/gemini'
 import { formatTimestamp, formatDuration } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
-import AudioPlayer from '@/components/AudioPlayer'
 import TagChips from '@/components/TagChips'
-import MoveToFolderModal from '@/components/MoveToFolderModal'
-import AddToInsightModal from '@/components/AddToInsightModal'
 import type { VoiceNote } from '@/types'
+
+const AudioPlayer = dynamic(() => import('@/components/AudioPlayer'))
+const MoveToFolderModal = dynamic(() => import('@/components/MoveToFolderModal'))
+const AddToInsightModal = dynamic(() => import('@/components/AddToInsightModal'))
 
 export default function NoteDetailPage() {
   const params = useParams()
@@ -172,6 +174,7 @@ export default function NoteDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/notes"
+            aria-label="Go back"
             className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-zinc-800"
           >
             <ArrowLeft size={20} className="text-zinc-400" />
@@ -182,6 +185,7 @@ export default function NoteDetailPage() {
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="More options"
             className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-zinc-800"
           >
             <MoreVertical size={20} className="text-zinc-400" />

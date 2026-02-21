@@ -25,6 +25,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale)
     db.settings.set('locale', newLocale)
