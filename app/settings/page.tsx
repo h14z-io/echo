@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Trash2, Database, ArrowRightLeft, Server, Globe } from 'lucide-react'
@@ -11,7 +10,6 @@ import { useI18n, LOCALE_NAMES, type Locale } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 export default function SettingsPage() {
-  const router = useRouter()
   const { t, locale, setLocale } = useI18n()
   const [notesCount, setNotesCount] = useState(0)
   const [foldersCount, setFoldersCount] = useState(0)
@@ -66,19 +64,12 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAll = async () => {
-    // Delete the entire IndexedDB database
-    const dbNames = ['echo-v2']
-    for (const name of dbNames) {
-      await new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(name)
-        request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
-      })
+    try {
+      await db.destroy()
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Failed to delete database:', err)
     }
-    setShowDeleteConfirm(false)
-    router.push('/')
-    // Force reload to recreate DB
-    window.location.href = '/'
   }
 
   return (

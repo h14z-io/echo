@@ -119,9 +119,23 @@ async function getAllByIndex<T>(
   })
 }
 
+async function destroy(): Promise<void> {
+  if (dbPromise) {
+    const database = await dbPromise
+    database.close()
+    dbPromise = null
+  }
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
 // Typed API
 
 export const db = {
+  destroy,
   notes: {
     getAll: () => getAll<VoiceNote>(STORES.notes),
 

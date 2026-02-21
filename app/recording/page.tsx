@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Square } from 'lucide-react'
 import { db } from '@/lib/db'
 import { generateId, formatRecordingTime } from '@/lib/utils'
@@ -15,6 +15,23 @@ export default function RecordingPage() {
   const [seconds, setSeconds] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingStep, setProcessingStep] = useState(0)
+
+  const PROCESSING_STEPS = 7
+
+  useEffect(() => {
+    if (!isProcessing) {
+      setProcessingStep(0)
+      return
+    }
+    if (processingStep >= PROCESSING_STEPS - 1) return
+
+    const timer = setTimeout(() => {
+      setProcessingStep((prev) => prev + 1)
+    }, 2500)
+
+    return () => clearTimeout(timer)
+  }, [isProcessing, processingStep])
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -71,7 +88,11 @@ export default function RecordingPage() {
     initedRef.current = true
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const preferredMic = localStorage.getItem('echo-preferred-mic')
+      const audioConstraints: MediaTrackConstraints | boolean = preferredMic
+        ? { deviceId: { ideal: preferredMic } }
+        : true
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
       streamRef.current = stream
 
       // Setup analyser for waveform
@@ -291,12 +312,25 @@ export default function RecordingPage() {
 
         {isProcessing && (
           <motion.div
-            className="flex flex-col items-center gap-2"
+            className="flex flex-col items-center gap-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
             <div className="w-5 h-5 border-2 border-zinc-600 border-t-accent-500 rounded-full animate-spin" />
-            <p className="text-sm text-zinc-500">{t('recording.transcribing')}</p>
+            <div className="h-5 relative">
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={processingStep}
+                  className="text-sm text-zinc-500"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {t(`recording.step${processingStep + 1}`)}
+                </motion.p>
+              </AnimatePresence>
+            </div>
           </motion.div>
         )}
 

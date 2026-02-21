@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Settings } from 'lucide-react'
 import { db } from '@/lib/db'
 import RecordButton from '@/components/RecordButton'
+import MicSelector from '@/components/MicSelector'
 import NoteCard from '@/components/NoteCard'
 import { useI18n } from '@/lib/i18n'
 import type { VoiceNote } from '@/types'
@@ -69,6 +70,7 @@ export default function HomePage() {
       <div className="flex flex-col items-center gap-4 py-12">
         <RecordButton />
         <p className="text-sm text-zinc-500">{t('home.tapToRecord')}</p>
+        <MicSelector />
       </div>
 
       {/* Recent Notes */}
