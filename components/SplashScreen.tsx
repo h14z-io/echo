@@ -1,16 +1,41 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
+import AccessCodeScreen from '@/components/AccessCodeScreen'
 
 export default function SplashScreen({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false)
     }, 2200)
     return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (showSplash) return
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth')
+        const data = await res.json()
+        setAuthenticated(data.authenticated)
+      } catch {
+        setAuthenticated(false)
+      } finally {
+        setAuthChecked(true)
+      }
+    }
+
+    checkAuth()
+  }, [showSplash])
+
+  const handleAuthSuccess = useCallback(() => {
+    setAuthenticated(true)
   }, [])
 
   return (
@@ -44,7 +69,15 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
         </div>
       )}
 
-      <div className={showSplash ? 'opacity-0' : 'animate-fade-in'}>
+      {!showSplash && !authChecked && (
+        <div className="fixed inset-0 z-[90] bg-zinc-950" />
+      )}
+
+      {!showSplash && authChecked && !authenticated && (
+        <AccessCodeScreen onSuccess={handleAuthSuccess} />
+      )}
+
+      <div className={showSplash || !authChecked || !authenticated ? 'opacity-0 pointer-events-none' : 'animate-fade-in'}>
         {children}
       </div>
     </>
