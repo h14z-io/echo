@@ -19,6 +19,7 @@ function getDB(): Promise<IDBDatabase> {
 
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
+      let settled = false
       const request = indexedDB.open(DB_NAME, DB_VERSION)
 
       request.onupgradeneeded = (event) => {
@@ -46,11 +47,27 @@ function getDB(): Promise<IDBDatabase> {
         }
       }
 
-      request.onsuccess = () => resolve(request.result)
+      request.onsuccess = () => {
+        settled = true
+        resolve(request.result)
+      }
       request.onerror = () => {
+        settled = true
         dbPromise = null
         reject(request.error)
       }
+      request.onblocked = () => {
+        settled = true
+        dbPromise = null
+        reject(new Error('Database blocked'))
+      }
+
+      setTimeout(() => {
+        if (!settled) {
+          dbPromise = null
+          reject(new Error('Database open timeout'))
+        }
+      }, 5000)
     })
   }
 
@@ -121,14 +138,20 @@ async function getAllByIndex<T>(
 
 async function destroy(): Promise<void> {
   if (dbPromise) {
-    const database = await dbPromise
-    database.close()
+    try {
+      const database = await dbPromise
+      database.close()
+    } catch {
+      // DB was already in bad state, ignore
+    }
     dbPromise = null
   }
   return new Promise((resolve, reject) => {
     const request = indexedDB.deleteDatabase(DB_NAME)
     request.onsuccess = () => resolve()
     request.onerror = () => reject(request.error)
+    request.onblocked = () => resolve()
+    setTimeout(() => resolve(), 3000)
   })
 }
 

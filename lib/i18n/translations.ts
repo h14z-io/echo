@@ -42,6 +42,9 @@ const en: NestedStrings = {
     recent: 'Recent',
     noRecordings: 'No recordings yet',
     startHint: 'Tap the button above to start',
+    grantMic: 'Grant microphone access',
+    micBlocked: 'Microphone blocked',
+    checkSettings: 'Check browser settings',
   },
   recording: {
     recording: 'Recording...',
@@ -58,6 +61,8 @@ const en: NestedStrings = {
     pause: 'Pause',
     resume: 'Resume',
     cancel: 'Cancel',
+    timeRemaining: '{seconds}s remaining',
+    maxReached: 'Maximum recording time reached',
   },
   notes: {
     title: 'Notes',
@@ -195,6 +200,9 @@ const es: NestedStrings = {
     recent: 'Recientes',
     noRecordings: 'Aún no hay grabaciones',
     startHint: 'Toca el botón de arriba para comenzar',
+    grantMic: 'Permitir acceso al micrófono',
+    micBlocked: 'Micrófono bloqueado',
+    checkSettings: 'Revisa la configuración del navegador',
   },
   recording: {
     recording: 'Grabando...',
@@ -211,6 +219,8 @@ const es: NestedStrings = {
     pause: 'Pausar',
     resume: 'Reanudar',
     cancel: 'Cancelar',
+    timeRemaining: '{seconds}s restantes',
+    maxReached: 'Tiempo máximo de grabación alcanzado',
   },
   notes: {
     title: 'Notas',
@@ -348,6 +358,9 @@ const pt: NestedStrings = {
     recent: 'Recentes',
     noRecordings: 'Nenhuma gravação ainda',
     startHint: 'Toque o botão acima para começar',
+    grantMic: 'Permitir acesso ao microfone',
+    micBlocked: 'Microfone bloqueado',
+    checkSettings: 'Verifique as configurações do navegador',
   },
   recording: {
     recording: 'Gravando...',
@@ -364,6 +377,8 @@ const pt: NestedStrings = {
     pause: 'Pausar',
     resume: 'Retomar',
     cancel: 'Cancelar',
+    timeRemaining: '{seconds}s restantes',
+    maxReached: 'Tempo máximo de gravação atingido',
   },
   notes: {
     title: 'Notas',

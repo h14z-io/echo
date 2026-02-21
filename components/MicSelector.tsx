@@ -1,29 +1,97 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic2, ChevronDown, Check } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
 const STORAGE_KEY = 'echo-preferred-mic'
+
+type PermissionState = 'checking' | 'prompt' | 'denied' | 'granted'
 
 export default function MicSelector() {
   const { t } = useI18n()
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [permissionState, setPermissionState] = useState<PermissionState>('checking')
   const ref = useRef<HTMLDivElement>(null)
+
+  const loadDevices = useCallback(async () => {
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      const mics = all.filter((d) => d.kind === 'audioinput' && d.deviceId)
+      setDevices(mics)
+      return mics
+    } catch {
+      return []
+    }
+  }, [])
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) setSelectedId(stored)
 
-    navigator.mediaDevices.enumerateDevices()
-      .then((all) => {
-        const mics = all.filter((d) => d.kind === 'audioinput' && d.deviceId)
-        setDevices(mics)
-      })
-      .catch(() => {})
-  }, [])
+    let permissionStatus: PermissionStatus | null = null
+    let handleChange: (() => void) | null = null
+
+    const checkPermission = async () => {
+      // Try the Permissions API first
+      if (navigator.permissions) {
+        try {
+          permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+
+          handleChange = () => {
+            if (permissionStatus!.state === 'granted') {
+              setPermissionState('granted')
+              loadDevices()
+            } else if (permissionStatus!.state === 'denied') {
+              setPermissionState('denied')
+            } else {
+              setPermissionState('prompt')
+            }
+          }
+
+          permissionStatus.addEventListener('change', handleChange)
+
+          if (permissionStatus.state === 'granted') {
+            setPermissionState('granted')
+            await loadDevices()
+            return
+          }
+
+          if (permissionStatus.state === 'denied') {
+            setPermissionState('denied')
+            return
+          }
+
+          // state === 'prompt'
+          setPermissionState('prompt')
+          return
+        } catch {
+          // Permissions API not supported for microphone, fall through to fallback
+        }
+      }
+
+      // Fallback for Safari and browsers without Permissions API support:
+      // Check if enumerateDevices returns devices with non-empty labels
+      const mics = await loadDevices()
+      const hasLabels = mics.some((d) => d.label && d.label.length > 0)
+
+      if (hasLabels) {
+        setPermissionState('granted')
+      } else {
+        setPermissionState('prompt')
+      }
+    }
+
+    checkPermission()
+
+    return () => {
+      if (permissionStatus && handleChange) {
+        permissionStatus.removeEventListener('change', handleChange)
+      }
+    }
+  }, [loadDevices])
 
   useEffect(() => {
     if (!open) return
@@ -36,6 +104,46 @@ export default function MicSelector() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
+  const requestPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((t) => t.stop())
+      setPermissionState('granted')
+      await loadDevices()
+    } catch {
+      setPermissionState('denied')
+    }
+  }
+
+  // Checking state: render a tiny placeholder to prevent layout shift
+  if (permissionState === 'checking') {
+    return <div className="h-5 mt-1" />
+  }
+
+  // Prompt state: show button to request permission
+  if (permissionState === 'prompt') {
+    return (
+      <button
+        onClick={requestPermission}
+        className="flex items-center gap-1.5 mt-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        <Mic2 size={12} strokeWidth={1.5} />
+        <span>{t('home.grantMic')}</span>
+      </button>
+    )
+  }
+
+  // Denied state: show non-interactive message
+  if (permissionState === 'denied') {
+    return (
+      <div className="flex items-center gap-1.5 mt-1 text-xs text-zinc-600">
+        <Mic2 size={12} strokeWidth={1.5} />
+        <span>{t('home.micBlocked')} &middot; {t('home.checkSettings')}</span>
+      </div>
+    )
+  }
+
+  // Granted state: show mic selector dropdown (existing behavior)
   if (devices.length === 0) return null
 
   const selected = devices.find((d) => d.deviceId === selectedId) || devices[0]

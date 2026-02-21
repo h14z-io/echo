@@ -27,12 +27,19 @@ export default function HomePage() {
   const [showInsightModal, setShowInsightModal] = useState(false)
 
   useEffect(() => {
+    let done = false
     db.notes.getRecent(5).then((notes) => {
+      done = true
       setRecentNotes(notes)
       setLoading(false)
     }).catch(() => {
+      done = true
       setLoading(false)
     })
+    const timeout = setTimeout(() => {
+      if (!done) setLoading(false)
+    }, 4000)
+    return () => clearTimeout(timeout)
   }, [])
 
   const handleAction = useCallback((action: 'folder' | 'insight' | 'delete', note: VoiceNote) => {

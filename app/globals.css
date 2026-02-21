@@ -157,3 +157,17 @@
 .animate-record-btn-in {
   animation: record-btn-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
+
+/* Recording time warning animations */
+@keyframes time-warning {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.animate-time-warning {
+  animation: time-warning 2s ease-in-out infinite;
+}
+
+.animate-time-critical {
+  animation: time-warning 0.8s ease-in-out infinite;
+}

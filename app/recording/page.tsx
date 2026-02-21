@@ -9,6 +9,10 @@ import { generateId, formatRecordingTime } from '@/lib/utils'
 import { processRecording } from '@/lib/gemini'
 import { useI18n } from '@/lib/i18n'
 
+const MAX_RECORDING_SECONDS = 600
+const WARNING_SECONDS = 570
+const CRITICAL_SECONDS = 590
+
 export default function RecordingPage() {
   const router = useRouter()
   const { t, locale } = useI18n()
@@ -18,6 +22,7 @@ export default function RecordingPage() {
   const [processingStep, setProcessingStep] = useState(0)
 
   const PROCESSING_STEPS = 7
+  const secondsRef = useRef(0)
 
   useEffect(() => {
     if (!isProcessing) {
@@ -66,6 +71,10 @@ export default function RecordingPage() {
       const barWidth = (canvas.width - totalGaps) / barCount
       const centerY = canvas.height / 2
 
+      const currentSeconds = secondsRef.current
+      const inCritical = currentSeconds >= CRITICAL_SECONDS
+      const inWarning = currentSeconds >= WARNING_SECONDS
+
       for (let i = 0; i < barCount; i++) {
         const dataIndex = Math.floor((i / barCount) * bufferLength)
         const value = dataArray[dataIndex] / 255
@@ -73,7 +82,13 @@ export default function RecordingPage() {
 
         const x = i * (barWidth + gap)
 
-        ctx.fillStyle = `rgba(var(--color-accent-500), ${0.5 + value * 0.5})`
+        if (inCritical) {
+          ctx.fillStyle = `rgba(248, 113, 113, ${0.5 + value * 0.5})`
+        } else if (inWarning) {
+          ctx.fillStyle = `rgba(251, 191, 36, ${0.5 + value * 0.5})`
+        } else {
+          ctx.fillStyle = `rgba(var(--color-accent-500), ${0.5 + value * 0.5})`
+        }
         ctx.beginPath()
         ctx.roundRect(x, centerY - barHeight, barWidth, barHeight * 2, 2)
         ctx.fill()
@@ -104,7 +119,9 @@ export default function RecordingPage() {
       audioContextRef.current = audioContext
       analyserRef.current = analyser
 
-      const mediaRecorder = new MediaRecorder(stream)
+      const mediaRecorder = new MediaRecorder(stream, {
+        audioBitsPerSecond: 32000,
+      })
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
@@ -119,7 +136,11 @@ export default function RecordingPage() {
 
       // Start timer
       timerRef.current = setInterval(() => {
-        setSeconds((prev) => prev + 1)
+        setSeconds((prev) => {
+          const next = prev + 1
+          secondsRef.current = next
+          return next
+        })
       }, 1000)
     } catch (err) {
       console.error('Failed to start recording:', err)
@@ -141,6 +162,13 @@ export default function RecordingPage() {
       }
     }
   }, [startRecording])
+
+  // Auto-stop when max recording time is reached
+  useEffect(() => {
+    if (seconds >= MAX_RECORDING_SECONDS && !isProcessing && !isPaused) {
+      handleStop()
+    }
+  }, [seconds, isProcessing, isPaused])
 
   const cleanup = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -240,7 +268,11 @@ export default function RecordingPage() {
     if (isPaused) {
       recorder.resume()
       timerRef.current = setInterval(() => {
-        setSeconds((prev) => prev + 1)
+        setSeconds((prev) => {
+          const next = prev + 1
+          secondsRef.current = next
+          return next
+        })
       }, 1000)
       drawWaveform()
       setIsPaused(false)
@@ -261,6 +293,22 @@ export default function RecordingPage() {
     router.push('/')
   }
 
+  const isWarning = seconds >= WARNING_SECONDS && !isPaused && !isProcessing
+  const isCritical = seconds >= CRITICAL_SECONDS && !isPaused && !isProcessing
+  const timeRemaining = MAX_RECORDING_SECONDS - seconds
+
+  const timerColorClass = isCritical
+    ? 'text-red-400'
+    : isWarning
+      ? 'text-amber-400'
+      : 'text-zinc-50'
+
+  const timerPulseClass = isCritical
+    ? 'animate-time-critical'
+    : isWarning
+      ? 'animate-time-warning'
+      : ''
+
   return (
     <div className="px-4 pt-4 flex flex-col items-center min-h-dvh">
       {/* Header */}
@@ -277,7 +325,7 @@ export default function RecordingPage() {
       {/* Timer */}
       <div className="flex-1 flex flex-col items-center justify-center gap-8 -mt-12">
         <motion.div
-          className="text-6xl font-light text-zinc-50 tabular-nums tracking-tight"
+          className={`text-6xl font-light tabular-nums tracking-tight ${timerColorClass} ${timerPulseClass}`}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -295,6 +343,32 @@ export default function RecordingPage() {
           animate={{ opacity: isPaused ? 0.4 : 1 }}
           transition={{ duration: 0.3 }}
         />
+
+        {/* Time warning message */}
+        <AnimatePresence>
+          {isWarning && timeRemaining > 0 && (
+            <motion.p
+              className={`text-sm font-medium ${isCritical ? 'text-red-400' : 'text-amber-400'}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              {t('recording.timeRemaining', { seconds: String(timeRemaining) })}
+            </motion.p>
+          )}
+          {isWarning && timeRemaining <= 0 && (
+            <motion.p
+              className="text-sm font-medium text-red-400"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              {t('recording.maxReached')}
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         {/* Stop Button */}
         {!isProcessing && (
