@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import { NextResponse } from 'next/server'
-import { LOCALE_LANGUAGE } from '@/lib/i18n/translations'
+import { LOCALE_LANGUAGE, LANGUAGE_NAMES } from '@/lib/i18n/translations'
 import type { Locale } from '@/lib/i18n/translations'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -37,10 +37,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { notes, images, locale = 'en' } = await request.json() as {
+    const { notes, images, locale = 'en', language: langParam } = await request.json() as {
       notes: { date: number; title: string; transcription: string }[]
       images?: { base64: string; mimeType: string }[]
       locale?: Locale
+      language?: string
     }
 
     if (!VALID_LOCALES.includes(locale)) {
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const language = LOCALE_LANGUAGE[locale] || 'English'
+    const language = langParam || LANGUAGE_NAMES[locale] || LOCALE_LANGUAGE[locale] || 'English'
 
     const ai = new GoogleGenAI({ apiKey })
 

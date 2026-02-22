@@ -12,6 +12,40 @@ export const LOCALE_LANGUAGE: Record<Locale, string> = {
   pt: 'Portuguese',
 }
 
+// Broader ISO 639-1 code to language name mapping for detected languages
+export const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  nl: 'Dutch',
+  ru: 'Russian',
+  ja: 'Japanese',
+  ko: 'Korean',
+  zh: 'Chinese',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  tr: 'Turkish',
+  pl: 'Polish',
+  sv: 'Swedish',
+  da: 'Danish',
+  no: 'Norwegian',
+  fi: 'Finnish',
+  cs: 'Czech',
+  ro: 'Romanian',
+  hu: 'Hungarian',
+  el: 'Greek',
+  he: 'Hebrew',
+  th: 'Thai',
+  vi: 'Vietnamese',
+  id: 'Indonesian',
+  ms: 'Malay',
+  uk: 'Ukrainian',
+  ca: 'Catalan',
+}
+
 // Nested translation type - allows dot-notation access
 type NestedStrings = { [key: string]: string | NestedStrings }
 
@@ -171,7 +205,7 @@ const en: NestedStrings = {
     deleteConfirm: 'Are you sure? This cannot be undone.',
     deleteAll: 'Yes, delete everything',
     about: 'About',
-    version: 'Echo v1.1.0',
+    version: 'Echo v1.1.3',
     description: 'Voice notes with AI transcription',
     builtWith: 'Built with Next.js + Gemini 2.5 Flash',
   },
@@ -341,7 +375,7 @@ const es: NestedStrings = {
     deleteConfirm: '¿Estás seguro? Esta acción no se puede deshacer.',
     deleteAll: 'Sí, eliminar todo',
     about: 'Acerca de',
-    version: 'Echo v1.1.0',
+    version: 'Echo v1.1.3',
     description: 'Notas de voz con transcripción IA',
     builtWith: 'Hecho con Next.js + Gemini 2.5 Flash',
   },
@@ -511,7 +545,7 @@ const pt: NestedStrings = {
     deleteConfirm: 'Tem certeza? Isso não pode ser desfeito.',
     deleteAll: 'Sim, excluir tudo',
     about: 'Sobre',
-    version: 'Echo v1.1.0',
+    version: 'Echo v1.1.3',
     description: 'Notas de voz com transcrição IA',
     builtWith: 'Feito com Next.js + Gemini 2.5 Flash',
   },

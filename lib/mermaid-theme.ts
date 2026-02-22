@@ -146,7 +146,7 @@ export const MERMAID_CONFIG: MermaidConfig = {
   flowchart: {
     curve: 'basis',
     padding: 16,
-    htmlLabels: true,
+    htmlLabels: false,
   },
   sequence: {
     mirrorActors: false,
@@ -172,25 +172,27 @@ export async function renderMermaid(code: string): Promise<{ svg: string; error?
   }
 }
 
-// Convert SVG string to PNG blob
+// Convert SVG string to PNG blob with timeout fallback
 export async function svgToBlob(svgString: string, containerEl?: HTMLElement): Promise<Blob> {
+  const TIMEOUT_MS = 5000
+
+  // Strip foreignObject elements that break canvas rendering
+  const cleanSvg = svgString.replace(/<foreignObject[\s\S]*?<\/foreignObject>/g, '')
+
   return new Promise((resolve, reject) => {
-    // Parse SVG to get dimensions
     const parser = new DOMParser()
-    const svgDoc = parser.parseFromString(svgString, 'image/svg+xml')
+    const svgDoc = parser.parseFromString(cleanSvg, 'image/svg+xml')
     const svgEl = svgDoc.documentElement
 
-    // Get actual dimensions
     let width = parseInt(svgEl.getAttribute('width') || '800')
     let height = parseInt(svgEl.getAttribute('height') || '600')
 
-    // If using a container, get the rendered size
     if (containerEl) {
       const rendered = containerEl.querySelector('svg')
       if (rendered) {
         const bbox = rendered.getBoundingClientRect()
-        width = Math.ceil(bbox.width)
-        height = Math.ceil(bbox.height)
+        width = Math.ceil(bbox.width) || width
+        height = Math.ceil(bbox.height) || height
       }
     }
 
@@ -209,21 +211,44 @@ export async function svgToBlob(svgString: string, containerEl?: HTMLElement): P
     ctx.fillStyle = '#18181b'
     ctx.fillRect(0, 0, width, height)
 
-    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+    let settled = false
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        // Return canvas with just the background as fallback
+        canvas.toBlob((blob) => {
+          resolve(blob || new Blob([], { type: 'image/png' }))
+        }, 'image/png')
+      }
+    }, TIMEOUT_MS)
+
+    const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' })
     const url = URL.createObjectURL(svgBlob)
 
     const img = new Image()
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height)
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      try {
+        ctx.drawImage(img, 0, 0, width, height)
+      } catch {
+        // Canvas tainted - ignore
+      }
       URL.revokeObjectURL(url)
       canvas.toBlob((blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error('Failed to create blob'))
+        resolve(blob || new Blob([], { type: 'image/png' }))
       }, 'image/png')
     }
     img.onerror = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
       URL.revokeObjectURL(url)
-      reject(new Error('Failed to load SVG'))
+      // Return dark placeholder
+      canvas.toBlob((blob) => {
+        resolve(blob || new Blob([], { type: 'image/png' }))
+      }, 'image/png')
     }
     img.src = url
   })

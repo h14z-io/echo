@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { db } from '@/lib/db'
 import { formatTimestamp, cn, generateId } from '@/lib/utils'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, LANGUAGE_NAMES } from '@/lib/i18n'
 import { generateInsightAnalysis, askInsightQuestion, generateDiagram } from '@/lib/gemini'
 import { compressImage, blobToBase64 } from '@/lib/image'
 import { renderMermaid, svgToBlob } from '@/lib/mermaid-theme'
@@ -53,6 +53,21 @@ export default function InsightDetailPage() {
     ...data,
     imageIds: data.imageIds || [],
   })
+
+  // Derive dominant language from notes' detectedLanguage field
+  const getNotesLanguage = (): string | undefined => {
+    const langs = notes
+      .map((n) => n.detectedLanguage)
+      .filter((l): l is string => !!l)
+    if (langs.length === 0) return undefined
+    // Find most common language
+    const counts: Record<string, number> = {}
+    for (const l of langs) {
+      counts[l] = (counts[l] || 0) + 1
+    }
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+    return LANGUAGE_NAMES[dominant] || dominant
+  }
 
   const loadInsight = useCallback(async () => {
     const data = await db.insights.get(id)
@@ -171,7 +186,8 @@ export default function InsightDetailPage() {
       }
 
       const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
-      const result = await generateInsightAnalysis(noteData, locale, imageData)
+      const notesLanguage = getNotesLanguage()
+      const result = await generateInsightAnalysis(noteData, locale, imageData, notesLanguage)
 
       const generatedContent: InsightContent = {
         summary: result.summary,
@@ -213,7 +229,8 @@ export default function InsightDetailPage() {
         }))
 
       const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
-      const result = await generateDiagram(noteData, locale, imageData)
+      const notesLanguage = getNotesLanguage()
+      const result = await generateDiagram(noteData, locale, imageData, notesLanguage)
 
       await saveDiagramAsAsset(result.mermaidCode)
     } catch (err) {
@@ -281,7 +298,8 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      const result = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale)
+      const notesLanguage = getNotesLanguage()
+      const result = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale, notesLanguage)
 
       // Save any mermaid diagrams as assets
       if (result.mermaidDiagrams && result.mermaidDiagrams.length > 0) {

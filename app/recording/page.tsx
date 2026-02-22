@@ -247,6 +247,7 @@ export default function RecordingPage() {
           summary: result.summary,
           transcription: result.transcription,
           tags: result.tags,
+          detectedLanguage: result.detectedLanguage,
           status: 'ready',
           updatedAt: Date.now(),
         })

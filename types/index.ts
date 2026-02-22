@@ -10,6 +10,7 @@ export interface VoiceNote {
   transcription: string | null
   summary: string | null
   tags: string[]
+  detectedLanguage?: string
   folderId: string | null
   insightIds: string[]
   status: 'recording' | 'transcribing' | 'ready' | 'error'

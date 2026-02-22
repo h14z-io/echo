@@ -5,6 +5,7 @@ export interface TranscriptionResult {
   summary: string
   transcription: string
   tags: string[]
+  detectedLanguage: string
 }
 
 export async function processRecording(
@@ -38,12 +39,13 @@ export interface InsightResult {
 export async function generateInsightAnalysis(
   notes: { date: number; title: string; transcription: string }[],
   locale = 'en',
-  images?: { base64: string; mimeType: string }[]
+  images?: { base64: string; mimeType: string }[],
+  language?: string
 ): Promise<InsightResult> {
   const response = await fetch('/api/insights/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, images, locale }),
+    body: JSON.stringify({ notes, images, locale, language }),
   })
 
   if (!response.ok) {
@@ -61,12 +63,13 @@ export interface DiagramResult {
 export async function generateDiagram(
   notes: { date: number; title: string; transcription: string }[],
   locale = 'en',
-  images?: { base64: string; mimeType: string }[]
+  images?: { base64: string; mimeType: string }[],
+  language?: string
 ): Promise<DiagramResult> {
   const response = await fetch('/api/insights/diagram', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, images, locale }),
+    body: JSON.stringify({ notes, images, locale, language }),
   })
 
   if (!response.ok) {
@@ -86,12 +89,13 @@ export async function askInsightQuestion(
   notes: { date: number; title: string; transcription: string }[],
   insightName: string,
   userPrompt: string,
-  locale = 'en'
+  locale = 'en',
+  language?: string
 ): Promise<AskResult> {
   const response = await fetch('/api/insights/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, insightName, userPrompt, locale }),
+    body: JSON.stringify({ notes, insightName, userPrompt, locale, language }),
   })
 
   if (!response.ok) {
