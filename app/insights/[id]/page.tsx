@@ -9,7 +9,6 @@ import {
   Plus,
   X,
   Search,
-  RefreshCw,
   Copy,
   Trash2,
   Loader2,
@@ -25,10 +24,12 @@ import { generateInsightAnalysis, askInsightQuestion, generateDiagram } from '@/
 import { compressImage, blobToBase64 } from '@/lib/image'
 import { renderMermaid, svgToBlob } from '@/lib/mermaid-theme'
 import InsightAssets from '@/components/InsightAssets'
+import { useToast } from '@/components/Toast'
 import type { Insight, VoiceNote, InsightContent, InsightImage } from '@/types'
 
 export default function InsightDetailPage() {
   const { t, locale } = useI18n()
+  const toast = useToast()
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
@@ -42,11 +43,11 @@ export default function InsightDetailPage() {
   const [showMenu, setShowMenu] = useState(false)
   const [showAddNotes, setShowAddNotes] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [askInput, setAskInput] = useState('')
   const [askingQuestion, setAskingQuestion] = useState(false)
-  const [copied, setCopied] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   const normalizeInsight = (data: Insight): Insight => ({
@@ -121,11 +122,31 @@ export default function InsightDetailPage() {
     return imageData
   }
 
+  const getDiagramTypeName = (code: string): string => {
+    const keyword = code.split('\n')[0].split(' ')[0].toLowerCase().replace(/-v\d+$/, '')
+    const names: Record<string, string> = {
+      flowchart: 'Flowchart',
+      graph: 'Flowchart',
+      sequencediagram: 'Sequence Diagram',
+      classdiagram: 'Class Diagram',
+      statediagram: 'State Diagram',
+      erdiagram: 'ER Diagram',
+      gantt: 'Gantt Chart',
+      pie: 'Pie Chart',
+      mindmap: 'Mind Map',
+      timeline: 'Timeline',
+      gitgraph: 'Git Graph',
+      journey: 'Journey Map',
+      quadrantchart: 'Quadrant Chart',
+    }
+    return names[keyword] || keyword
+  }
+
   // Save a mermaid diagram as an InsightImage asset
-  const saveDiagramAsAsset = async (mermaidCode: string, label?: string) => {
+  const saveDiagramAsAsset = async (mermaidCode: string) => {
     if (!insight) return
-    const diagramType = mermaidCode.split('\n')[0].split(' ')[0]
-    const name = label || `${diagramType}-${new Date().toLocaleTimeString()}`
+    const typeName = getDiagramTypeName(mermaidCode)
+    const name = `${typeName} - ${new Date().toLocaleTimeString()}`
 
     // Render to PNG for thumbnail
     let blob: Blob
@@ -180,7 +201,7 @@ export default function InsightDetailPage() {
         }))
 
       if (noteData.length === 0 && images.filter((i) => !i.mermaidCode).length === 0) {
-        alert(t('insights.noContentToAnalyze'))
+        toast.error(t('insights.noContentToAnalyze'))
         setGenerating(false)
         return
       }
@@ -211,7 +232,7 @@ export default function InsightDetailPage() {
       setInsight(updated)
     } catch (err) {
       console.error('Generation failed:', err)
-      alert('Failed to generate insights. Check your API key and try again.')
+      toast.error(t('insights.generateFailed'))
     }
     setGenerating(false)
   }
@@ -235,7 +256,7 @@ export default function InsightDetailPage() {
       await saveDiagramAsAsset(result.mermaidCode)
     } catch (err) {
       console.error('Diagram generation failed:', err)
-      alert('Failed to generate diagram. Check your API key and try again.')
+      toast.error(t('insights.diagramFailed'))
     }
     setGeneratingDiagram(false)
   }
@@ -304,7 +325,7 @@ export default function InsightDetailPage() {
       // Save any mermaid diagrams as assets
       if (result.mermaidDiagrams && result.mermaidDiagrams.length > 0) {
         for (const code of result.mermaidDiagrams) {
-          await saveDiagramAsAsset(code, askInput.trim().substring(0, 40))
+          await saveDiagramAsAsset(code)
         }
       }
 
@@ -339,7 +360,7 @@ export default function InsightDetailPage() {
       setAskInput('')
     } catch (err) {
       console.error('Question failed:', err)
-      alert('Failed to get answer. Check your API key and try again.')
+      toast.error(t('insights.questionFailed'))
     }
     setAskingQuestion(false)
   }
@@ -380,8 +401,7 @@ export default function InsightDetailPage() {
     }
 
     navigator.clipboard.writeText(md.trim())
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    toast.success(t('common.copied'))
   }
 
   if (loading) {
@@ -456,20 +476,11 @@ export default function InsightDetailPage() {
               <div className="absolute right-0 top-8 z-50 w-48 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
                 {gc && (
                   <button
-                    onClick={() => { handleGenerate(); setShowMenu(false) }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
-                  >
-                    <RefreshCw size={16} />
-                    {t('insights.regenerate')}
-                  </button>
-                )}
-                {gc && (
-                  <button
                     onClick={() => { copyAsMarkdown(); setShowMenu(false) }}
                     className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
                   >
                     <Copy size={16} />
-                    {copied ? t('common.copied') : t('insights.copyMarkdown')}
+                    {t('insights.copyMarkdown')}
                   </button>
                 )}
                 <button
@@ -564,7 +575,7 @@ export default function InsightDetailPage() {
         hasContent={hasContent}
       />
 
-      {/* Generated Content */}
+      {/* Generated Content or Loading */}
       {generating ? (
         <div className="space-y-3">
           {[0, 1, 2, 3].map((i) => (
@@ -688,21 +699,32 @@ export default function InsightDetailPage() {
             </motion.div>
           ))}
         </div>
-      ) : (
+      ) : null}
+
+      {/* Generate Button - always visible when content is available */}
+      {!generating && hasContent && (
+        <div className="py-4">
+          <button
+            onClick={() => {
+              if (gc) {
+                setShowRegenerateConfirm(true)
+              } else {
+                handleGenerate()
+              }
+            }}
+            className="w-full bg-accent-600 hover:bg-accent-700 text-white rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <Sparkles size={16} />
+            {gc ? t('insights.regenerate') : t('insights.generateInsights')}
+          </button>
+        </div>
+      )}
+
+      {!generating && !hasContent && !gc && (
         <div className="py-8">
-          {hasContent ? (
-            <button
-              onClick={handleGenerate}
-              className="w-full bg-accent-600 hover:bg-accent-700 text-white rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <Sparkles size={16} />
-              {t('insights.generateInsights')}
-            </button>
-          ) : (
-            <p className="text-center text-sm text-zinc-500">
-              {t('insights.addNotesToGenerate')}
-            </p>
-          )}
+          <p className="text-center text-sm text-zinc-500">
+            {t('insights.addNotesToGenerate')}
+          </p>
         </div>
       )}
 
@@ -802,6 +824,36 @@ export default function InsightDetailPage() {
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 {t('common.delete')}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Regenerate Confirm Modal */}
+      {showRegenerateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4"
+          >
+            <h2 className="text-lg font-semibold text-zinc-50">{t('insights.regenerateTitle')}</h2>
+            <p className="text-sm text-zinc-400">
+              {t('insights.regenerateConfirm')}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRegenerateConfirm(false)}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => { setShowRegenerateConfirm(false); handleGenerate() }}
+                className="flex-1 bg-accent-600 hover:bg-accent-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              >
+                {t('insights.regenerate')}
               </button>
             </div>
           </motion.div>

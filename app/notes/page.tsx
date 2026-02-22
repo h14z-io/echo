@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
-import { Search } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Mic } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { db } from '@/lib/db'
 import { cn, getTagColor } from '@/lib/utils'
@@ -85,7 +86,16 @@ export default function NotesPage() {
 
   return (
     <div className="px-4 pt-4 pb-20">
-      <h1 className="text-xl font-semibold text-zinc-50">{t('notes.title')}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-zinc-50">{t('notes.title')}</h1>
+        <Link
+          href="/recording"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-600 transition-colors hover:bg-accent-700 active:scale-95"
+          aria-label={t('home.tapToRecord')}
+        >
+          <Mic size={16} className="text-white" />
+        </Link>
+      </div>
 
       <div className="relative mt-4">
         <Search

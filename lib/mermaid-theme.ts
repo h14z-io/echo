@@ -146,7 +146,7 @@ export const MERMAID_CONFIG: MermaidConfig = {
   flowchart: {
     curve: 'basis',
     padding: 16,
-    htmlLabels: false,
+    htmlLabels: true,
   },
   sequence: {
     mirrorActors: false,
@@ -162,9 +162,11 @@ export const MERMAID_CONFIG: MermaidConfig = {
 // Render mermaid code to SVG string
 export async function renderMermaid(code: string): Promise<{ svg: string; error?: undefined } | { svg?: undefined; error: string }> {
   try {
+    // Sanitize non-ASCII dashes (em-dash, en-dash) to ASCII hyphen
+    const sanitizedCode = code.replace(/[\u2013\u2014\u2015]/g, '-')
     const mermaid = (await import('mermaid')).default
     mermaid.initialize(MERMAID_CONFIG)
-    const { svg } = await mermaid.render('diagram-' + Date.now(), code)
+    const { svg } = await mermaid.render('diagram-' + Date.now(), sanitizedCode)
     return { svg }
   } catch (err) {
     console.error('Mermaid render error:', err)

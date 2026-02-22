@@ -66,7 +66,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
 
           {/* Version */}
           <p className="text-[10px] text-zinc-700 mt-6 animate-splash-tagline">
-            v1.1.3
+            v1.1.5
           </p>
 
           {/* Bottom accent line */}

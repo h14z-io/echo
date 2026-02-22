@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, MoreVertical, ChevronDown, Loader2, Copy, Check, FolderOpen, Lightbulb } from 'lucide-react'
+import { ArrowLeft, MoreVertical, ChevronDown, Loader2, Copy, FolderOpen, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
 import { db } from '@/lib/db'
 import { processRecording } from '@/lib/gemini'
 import { formatTimestamp, formatDuration } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
 import TagChips from '@/components/TagChips'
+import { useToast } from '@/components/Toast'
 import type { VoiceNote } from '@/types'
 
 const AudioPlayer = dynamic(() => import('@/components/AudioPlayer'))
@@ -23,6 +24,7 @@ export default function NoteDetailPage() {
   const id = params.id as string
 
   const { t, locale } = useI18n()
+  const toast = useToast()
   const [note, setNote] = useState<VoiceNote | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -31,8 +33,6 @@ export default function NoteDetailPage() {
   const [editTitle, setEditTitle] = useState('')
   const [summaryOpen, setSummaryOpen] = useState(true)
   const [retrying, setRetrying] = useState(false)
-  const [copiedSummary, setCopiedSummary] = useState(false)
-  const [copiedTranscript, setCopiedTranscript] = useState(false)
   const [showFolderModal, setShowFolderModal] = useState(false)
   const [showInsightModal, setShowInsightModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -349,22 +349,14 @@ export default function NoteDetailPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(note.summary || '')
-                  setCopiedSummary(true)
-                  setTimeout(() => setCopiedSummary(false), 2000)
+                  toast.success(t('common.copied'))
                 }}
                 className="ml-auto p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
               >
-                {copiedSummary ? (
-                  <span className="flex items-center gap-1 text-xs text-accent-400">
-                    <Check size={14} />
-                    {t('noteDetail.copied')}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs">
-                    <Copy size={14} />
-                    {t('noteDetail.copy')}
-                  </span>
-                )}
+                <span className="flex items-center gap-1 text-xs">
+                  <Copy size={14} />
+                  {t('noteDetail.copy')}
+                </span>
               </button>
             </div>
             <AnimatePresence initial={false}>
@@ -399,22 +391,14 @@ export default function NoteDetailPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(note.transcription || '')
-                  setCopiedTranscript(true)
-                  setTimeout(() => setCopiedTranscript(false), 2000)
+                  toast.success(t('common.copied'))
                 }}
                 className="ml-auto p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
               >
-                {copiedTranscript ? (
-                  <span className="flex items-center gap-1 text-xs text-accent-400">
-                    <Check size={14} />
-                    {t('noteDetail.copied')}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs">
-                    <Copy size={14} />
-                    {t('noteDetail.copy')}
-                  </span>
-                )}
+                <span className="flex items-center gap-1 text-xs">
+                  <Copy size={14} />
+                  {t('noteDetail.copy')}
+                </span>
               </button>
             </div>
             <div className="max-h-64 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900 p-4">
@@ -456,7 +440,10 @@ export default function NoteDetailPage() {
           noteId={note.id}
           currentInsightIds={note.insightIds}
           onClose={() => setShowInsightModal(false)}
-          onAdded={(insightId) => setNote({ ...note, insightIds: [...note.insightIds, insightId], updatedAt: Date.now() })}
+          onAdded={(insightId) => {
+            setNote({ ...note, insightIds: [...note.insightIds, insightId], updatedAt: Date.now() })
+            router.push(`/insights/${insightId}`)
+          }}
         />
       )}
 

@@ -6,6 +6,7 @@ import { Lightbulb, Plus, X, Check, Loader2 } from 'lucide-react'
 import { db } from '@/lib/db'
 import { generateId, cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
+import { useToast } from '@/components/Toast'
 import type { Insight } from '@/types'
 
 interface AddToInsightModalProps {
@@ -22,8 +23,11 @@ export default function AddToInsightModal({
   onAdded,
 }: AddToInsightModalProps) {
   const { t } = useI18n()
+  const toast = useToast()
   const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [newInsightName, setNewInsightName] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
@@ -35,46 +39,62 @@ export default function AddToInsightModal({
   }, [])
 
   const addToInsight = async (insight: Insight) => {
-    if (insight.noteIds.includes(noteId)) return
+    if (insight.noteIds.includes(noteId) || saving) return
+    setSaving(true)
+    setSavingId(insight.id)
 
-    const updatedInsight = {
-      ...insight,
-      noteIds: [...insight.noteIds, noteId],
-      updatedAt: Date.now(),
-    }
-    await db.insights.put(updatedInsight)
+    try {
+      const updatedInsight = {
+        ...insight,
+        noteIds: [...insight.noteIds, noteId],
+        updatedAt: Date.now(),
+      }
+      await db.insights.put(updatedInsight)
 
-    const note = await db.notes.get(noteId)
-    if (!note) return
-    const updatedNote = {
-      ...note,
-      insightIds: [...note.insightIds, insight.id],
-      updatedAt: Date.now(),
+      const note = await db.notes.get(noteId)
+      if (!note) return
+      const updatedNote = {
+        ...note,
+        insightIds: [...note.insightIds, insight.id],
+        updatedAt: Date.now(),
+      }
+      await db.notes.put(updatedNote)
+      toast.success(t('insights.addedToInsight', { name: insight.name }))
+      onAdded(insight.id)
+      onClose()
+    } catch {
+      setSaving(false)
+      setSavingId(null)
     }
-    await db.notes.put(updatedNote)
-    onAdded(insight.id)
-    onClose()
   }
 
   const createAndAdd = async () => {
     const name = newInsightName.trim()
-    if (!name) return
-    const insight: Insight = {
-      id: generateId(),
-      name,
-      noteIds: [],
-      imageIds: [],
-      generatedContent: null,
-      lastGeneratedAt: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+    if (!name || saving) return
+    setSaving(true)
+    setSavingId('__new__')
+
+    try {
+      const insight: Insight = {
+        id: generateId(),
+        name,
+        noteIds: [],
+        imageIds: [],
+        generatedContent: null,
+        lastGeneratedAt: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+      await db.insights.put(insight)
+      await addToInsight(insight)
+    } catch {
+      setSaving(false)
+      setSavingId(null)
     }
-    await db.insights.put(insight)
-    await addToInsight(insight)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pb-20" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pb-20" onClick={saving ? undefined : onClose}>
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
@@ -87,7 +107,7 @@ export default function AddToInsightModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-zinc-800">
           <h2 id="insight-modal-title" className="text-lg font-semibold text-zinc-50">{t('noteDetail.selectInsight')}</h2>
-          <button onClick={onClose} aria-label="Close" className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors">
+          <button onClick={onClose} disabled={saving} aria-label="Close" className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40">
             <X size={20} />
           </button>
         </div>
@@ -101,19 +121,26 @@ export default function AddToInsightModal({
             <>
               {insights.map((insight) => {
                 const alreadyAdded = currentInsightIds.includes(insight.id)
+                const isSaving = savingId === insight.id
                 return (
                   <button
                     key={insight.id}
                     onClick={() => !alreadyAdded && addToInsight(insight)}
-                    disabled={alreadyAdded}
+                    disabled={alreadyAdded || saving}
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg text-sm transition-colors',
                       alreadyAdded
                         ? 'bg-accent-600/10 text-accent-400 border border-accent-600/30 cursor-default'
-                        : 'text-zinc-300 hover:bg-zinc-800'
+                        : saving
+                          ? 'text-zinc-500 cursor-not-allowed'
+                          : 'text-zinc-300 hover:bg-zinc-800'
                     )}
                   >
-                    <Lightbulb size={16} className={alreadyAdded ? 'text-accent-400' : 'text-zinc-500'} />
+                    {isSaving ? (
+                      <Loader2 size={16} className="animate-spin text-accent-400" />
+                    ) : (
+                      <Lightbulb size={16} className={alreadyAdded ? 'text-accent-400' : 'text-zinc-500'} />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="truncate">{insight.name}</p>
                       {alreadyAdded && (
@@ -134,21 +161,24 @@ export default function AddToInsightModal({
                     onChange={(e) => setNewInsightName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && createAndAdd()}
                     placeholder={t('insights.insightName')}
+                    disabled={saving}
                     autoFocus
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 outline-none"
+                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 outline-none disabled:opacity-50"
                   />
                   <button
                     onClick={createAndAdd}
-                    disabled={!newInsightName.trim()}
-                    className="bg-accent-600 hover:bg-accent-700 disabled:opacity-40 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                    disabled={!newInsightName.trim() || saving}
+                    className="bg-accent-600 hover:bg-accent-700 disabled:opacity-40 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1.5"
                   >
+                    {savingId === '__new__' && <Loader2 size={14} className="animate-spin" />}
                     {t('insights.create')}
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg text-sm text-accent-400 hover:bg-zinc-800 transition-colors mt-1 border border-dashed border-zinc-700"
+                  disabled={saving}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg text-sm text-accent-400 hover:bg-zinc-800 transition-colors mt-1 border border-dashed border-zinc-700 disabled:opacity-40"
                 >
                   <Plus size={16} />
                   {t('noteDetail.createNewInsight')}
