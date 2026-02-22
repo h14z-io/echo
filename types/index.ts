@@ -10,6 +10,7 @@ export interface VoiceNote {
   transcription: string | null
   summary: string | null
   tags: string[]
+  detectedLanguage?: string
   folderId: string | null
   insightIds: string[]
   status: 'recording' | 'transcribing' | 'ready' | 'error'
@@ -25,10 +26,23 @@ export interface Folder {
   createdAt: number
 }
 
+export interface InsightImage {
+  id: string
+  insightId: string
+  blob: Blob
+  name: string
+  mimeType: string
+  width: number
+  height: number
+  mermaidCode?: string
+  createdAt: number
+}
+
 export interface Insight {
   id: string
   name: string
   noteIds: string[]
+  imageIds: string[]
   generatedContent: InsightContent | null
   lastGeneratedAt: number | null
   createdAt: number

@@ -87,7 +87,7 @@ export default function RecordingPage() {
         } else if (inWarning) {
           ctx.fillStyle = `rgba(251, 191, 36, ${0.5 + value * 0.5})`
         } else {
-          ctx.fillStyle = `rgba(var(--color-accent-500), ${0.5 + value * 0.5})`
+          ctx.fillStyle = `rgba(232, 77, 110, ${0.6 + value * 0.4})`
         }
         ctx.beginPath()
         ctx.roundRect(x, centerY - barHeight, barWidth, barHeight * 2, 2)
@@ -247,6 +247,7 @@ export default function RecordingPage() {
           summary: result.summary,
           transcription: result.transcription,
           tags: result.tags,
+          detectedLanguage: result.detectedLanguage,
           status: 'ready',
           updatedAt: Date.now(),
         })

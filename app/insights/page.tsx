@@ -38,6 +38,7 @@ export default function InsightsPage() {
       id: generateId(),
       name,
       noteIds: [],
+      imageIds: [],
       generatedContent: null,
       lastGeneratedAt: null,
       createdAt: Date.now(),

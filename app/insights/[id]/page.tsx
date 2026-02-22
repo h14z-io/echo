@@ -19,10 +19,13 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { db } from '@/lib/db'
-import { formatTimestamp, cn } from '@/lib/utils'
-import { useI18n } from '@/lib/i18n'
-import { generateInsightAnalysis, askInsightQuestion } from '@/lib/gemini'
-import type { Insight, VoiceNote, InsightContent } from '@/types'
+import { formatTimestamp, cn, generateId } from '@/lib/utils'
+import { useI18n, LANGUAGE_NAMES } from '@/lib/i18n'
+import { generateInsightAnalysis, askInsightQuestion, generateDiagram } from '@/lib/gemini'
+import { compressImage, blobToBase64 } from '@/lib/image'
+import { renderMermaid, svgToBlob } from '@/lib/mermaid-theme'
+import InsightAssets from '@/components/InsightAssets'
+import type { Insight, VoiceNote, InsightContent, InsightImage } from '@/types'
 
 export default function InsightDetailPage() {
   const { t, locale } = useI18n()
@@ -32,8 +35,10 @@ export default function InsightDetailPage() {
 
   const [insight, setInsight] = useState<Insight | null>(null)
   const [notes, setNotes] = useState<VoiceNote[]>([])
+  const [images, setImages] = useState<InsightImage[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showAddNotes, setShowAddNotes] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -44,21 +49,46 @@ export default function InsightDetailPage() {
   const [copied, setCopied] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
+  const normalizeInsight = (data: Insight): Insight => ({
+    ...data,
+    imageIds: data.imageIds || [],
+  })
+
+  // Derive dominant language from notes' detectedLanguage field
+  const getNotesLanguage = (): string | undefined => {
+    const langs = notes
+      .map((n) => n.detectedLanguage)
+      .filter((l): l is string => !!l)
+    if (langs.length === 0) return undefined
+    // Find most common language
+    const counts: Record<string, number> = {}
+    for (const l of langs) {
+      counts[l] = (counts[l] || 0) + 1
+    }
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+    return LANGUAGE_NAMES[dominant] || dominant
+  }
+
   const loadInsight = useCallback(async () => {
     const data = await db.insights.get(id)
     if (!data) {
       router.push('/insights')
       return
     }
-    setInsight(data)
-    setNameValue(data.name)
+    const normalized = normalizeInsight(data)
+    setInsight(normalized)
+    setNameValue(normalized.name)
 
-    if (data.noteIds.length > 0) {
+    if (normalized.noteIds.length > 0) {
       const allNotes = await db.notes.getAll()
-      setNotes(allNotes.filter((n) => data.noteIds.includes(n.id)))
+      setNotes(allNotes.filter((n) => normalized.noteIds.includes(n.id)))
     } else {
       setNotes([])
     }
+
+    const insightImages = await db.insightImages.getByInsight(id)
+    setImages(insightImages.sort((a, b) => a.createdAt - b.createdAt))
+
     setLoading(false)
   }, [id, router])
 
@@ -81,8 +111,64 @@ export default function InsightDetailPage() {
     setEditingName(false)
   }
 
+  const getImageDataForApi = async (): Promise<{ base64: string; mimeType: string }[]> => {
+    const regularImages = images.filter((img) => !img.mermaidCode)
+    const imageData: { base64: string; mimeType: string }[] = []
+    for (const img of regularImages) {
+      const base64 = await blobToBase64(img.blob)
+      imageData.push({ base64, mimeType: img.mimeType })
+    }
+    return imageData
+  }
+
+  // Save a mermaid diagram as an InsightImage asset
+  const saveDiagramAsAsset = async (mermaidCode: string, label?: string) => {
+    if (!insight) return
+    const diagramType = mermaidCode.split('\n')[0].split(' ')[0]
+    const name = label || `${diagramType}-${new Date().toLocaleTimeString()}`
+
+    // Render to PNG for thumbnail
+    let blob: Blob
+    let width = 800
+    let height = 600
+    try {
+      const result = await renderMermaid(mermaidCode)
+      if (result.svg) {
+        blob = await svgToBlob(result.svg)
+      } else {
+        // Fallback: store a tiny placeholder
+        blob = new Blob([''], { type: 'image/png' })
+      }
+    } catch {
+      blob = new Blob([''], { type: 'image/png' })
+    }
+
+    const imageId = generateId()
+    const insightImage: InsightImage = {
+      id: imageId,
+      insightId: insight.id,
+      blob,
+      name,
+      mimeType: 'image/png',
+      width,
+      height,
+      mermaidCode,
+      createdAt: Date.now(),
+    }
+    await db.insightImages.put(insightImage)
+
+    const updated: Insight = {
+      ...insight,
+      imageIds: [...insight.imageIds, imageId],
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => [...prev, insightImage])
+  }
+
   const handleGenerate = async () => {
-    if (!insight || notes.length === 0) return
+    if (!insight || (notes.length === 0 && images.length === 0)) return
     setGenerating(true)
     try {
       const noteData = notes
@@ -93,13 +179,15 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      if (noteData.length === 0) {
-        alert('No transcribed notes to analyze')
+      if (noteData.length === 0 && images.filter((i) => !i.mermaidCode).length === 0) {
+        alert(t('insights.noContentToAnalyze'))
         setGenerating(false)
         return
       }
 
-      const result = await generateInsightAnalysis(noteData, locale)
+      const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
+      const notesLanguage = getNotesLanguage()
+      const result = await generateInsightAnalysis(noteData, locale, imageData, notesLanguage)
 
       const generatedContent: InsightContent = {
         summary: result.summary,
@@ -128,6 +216,76 @@ export default function InsightDetailPage() {
     setGenerating(false)
   }
 
+  const handleGenerateDiagram = async () => {
+    if (!insight || (notes.length === 0 && images.length === 0)) return
+    setGeneratingDiagram(true)
+    try {
+      const noteData = notes
+        .filter((n) => n.transcription)
+        .map((n) => ({
+          date: n.createdAt,
+          title: n.title || n.defaultTitle,
+          transcription: n.transcription!,
+        }))
+
+      const imageData = images.filter((i) => !i.mermaidCode).length > 0 ? await getImageDataForApi() : undefined
+      const notesLanguage = getNotesLanguage()
+      const result = await generateDiagram(noteData, locale, imageData, notesLanguage)
+
+      await saveDiagramAsAsset(result.mermaidCode)
+    } catch (err) {
+      console.error('Diagram generation failed:', err)
+      alert('Failed to generate diagram. Check your API key and try again.')
+    }
+    setGeneratingDiagram(false)
+  }
+
+  const handleAddImages = async (files: File[]) => {
+    if (!insight) return
+    const newImages: InsightImage[] = []
+    const newImageIds: string[] = []
+
+    for (const file of files) {
+      const compressed = await compressImage(file)
+      const imageId = generateId()
+      const insightImage: InsightImage = {
+        id: imageId,
+        insightId: insight.id,
+        blob: compressed.blob,
+        name: file.name,
+        mimeType: compressed.mimeType,
+        width: compressed.width,
+        height: compressed.height,
+        createdAt: Date.now(),
+      }
+      await db.insightImages.put(insightImage)
+      newImages.push(insightImage)
+      newImageIds.push(imageId)
+    }
+
+    const updated: Insight = {
+      ...insight,
+      imageIds: [...insight.imageIds, ...newImageIds],
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => [...prev, ...newImages])
+  }
+
+  const handleRemoveImage = async (imageId: string) => {
+    if (!insight) return
+    await db.insightImages.delete(imageId)
+    const updated: Insight = {
+      ...insight,
+      imageIds: insight.imageIds.filter((id) => id !== imageId),
+      updatedAt: Date.now(),
+    }
+    await db.insights.put(updated)
+    setInsight(updated)
+    setImages((prev) => prev.filter((img) => img.id !== imageId))
+  }
+
   const handleAsk = async () => {
     if (!insight || !askInput.trim() || notes.length === 0) return
     setAskingQuestion(true)
@@ -140,32 +298,44 @@ export default function InsightDetailPage() {
           transcription: n.transcription!,
         }))
 
-      const answer = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale)
+      const notesLanguage = getNotesLanguage()
+      const result = await askInsightQuestion(noteData, insight.name, askInput.trim(), locale, notesLanguage)
 
-      const customSection = {
-        prompt: askInput.trim(),
-        content: answer,
-        generatedAt: Date.now(),
+      // Save any mermaid diagrams as assets
+      if (result.mermaidDiagrams && result.mermaidDiagrams.length > 0) {
+        for (const code of result.mermaidDiagrams) {
+          await saveDiagramAsAsset(code, askInput.trim().substring(0, 40))
+        }
       }
 
-      const existingSections = insight.generatedContent?.customSections || []
-      const generatedContent: InsightContent = insight.generatedContent
-        ? { ...insight.generatedContent, customSections: [...existingSections, customSection] }
-        : {
-            summary: '',
-            keyPoints: [],
-            actionItems: [],
-            timeline: [],
-            customSections: [customSection],
-          }
+      // Save text content as custom section (if there's text)
+      if (result.content) {
+        const customSection = {
+          prompt: askInput.trim(),
+          content: result.content,
+          generatedAt: Date.now(),
+        }
 
-      const updated: Insight = {
-        ...insight,
-        generatedContent,
-        updatedAt: Date.now(),
+        const existingSections = insight.generatedContent?.customSections || []
+        const generatedContent: InsightContent = insight.generatedContent
+          ? { ...insight.generatedContent, customSections: [...existingSections, customSection] }
+          : {
+              summary: '',
+              keyPoints: [],
+              actionItems: [],
+              timeline: [],
+              customSections: [customSection],
+            }
+
+        const updated: Insight = {
+          ...insight,
+          generatedContent,
+          updatedAt: Date.now(),
+        }
+        await db.insights.put(updated)
+        setInsight(updated)
       }
-      await db.insights.put(updated)
-      setInsight(updated)
+
       setAskInput('')
     } catch (err) {
       console.error('Question failed:', err)
@@ -230,6 +400,7 @@ export default function InsightDetailPage() {
   if (!insight) return null
 
   const gc = insight.generatedContent
+  const hasContent = notes.length > 0 || images.filter((i) => !i.mermaidCode).length > 0
 
   return (
     <div className="px-4 pt-4 pb-20 space-y-6">
@@ -383,6 +554,16 @@ export default function InsightDetailPage() {
         )}
       </div>
 
+      {/* Assets Section (images + diagrams) */}
+      <InsightAssets
+        images={images}
+        onAddFiles={handleAddImages}
+        onRemove={handleRemoveImage}
+        onGenerateDiagram={handleGenerateDiagram}
+        generatingDiagram={generatingDiagram}
+        hasContent={hasContent}
+      />
+
       {/* Generated Content */}
       {generating ? (
         <div className="space-y-3">
@@ -406,7 +587,6 @@ export default function InsightDetailPage() {
         </div>
       ) : gc ? (
         <div className="space-y-4">
-          {/* Summary */}
           {gc.summary && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -420,7 +600,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Key Points */}
           {gc.keyPoints.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -442,7 +621,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Action Items */}
           {gc.actionItems.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -464,7 +642,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Timeline */}
           {gc.timeline.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -494,7 +671,6 @@ export default function InsightDetailPage() {
             </motion.div>
           )}
 
-          {/* Custom Sections */}
           {gc.customSections.map((section, i) => (
             <motion.div
               key={i}
@@ -514,7 +690,7 @@ export default function InsightDetailPage() {
         </div>
       ) : (
         <div className="py-8">
-          {notes.length > 0 ? (
+          {hasContent ? (
             <button
               onClick={handleGenerate}
               className="w-full bg-accent-600 hover:bg-accent-700 text-white rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -532,27 +708,30 @@ export default function InsightDetailPage() {
 
       {/* Ask Anything */}
       {insight.noteIds.length > 0 && (
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={t('insights.askAnything')}
-            value={askInput}
-            onChange={(e) => setAskInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !askingQuestion && handleAsk()}
-            disabled={askingQuestion}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none disabled:opacity-50"
-          />
-          <button
-            onClick={handleAsk}
-            disabled={!askInput.trim() || askingQuestion}
-            className="p-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-          >
-            {askingQuestion ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Send size={16} />
-            )}
-          </button>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder={t('insights.askAnything')}
+              value={askInput}
+              onChange={(e) => setAskInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !askingQuestion && handleAsk()}
+              disabled={askingQuestion}
+              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:border-accent-600 focus:ring-1 focus:ring-accent-600/50 outline-none disabled:opacity-50"
+            />
+            <button
+              onClick={handleAsk}
+              disabled={!askInput.trim() || askingQuestion}
+              className="p-2 bg-accent-600 hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              {askingQuestion ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} />
+              )}
+            </button>
+          </div>
+          <p className="text-[10px] text-zinc-600 px-1">{t('insights.askHint')}</p>
         </div>
       )}
 
@@ -680,7 +859,6 @@ function AddNotesModal({
         className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-t-2xl flex flex-col"
         style={{ maxHeight: '80vh' }}
       >
-        {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-800">
           <h2 className="text-lg font-semibold text-zinc-50">{t('insights.addNotes')}</h2>
           <button
@@ -692,7 +870,6 @@ function AddNotesModal({
           </button>
         </div>
 
-        {/* Search */}
         <div className="p-4 border-b border-zinc-800">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -707,7 +884,6 @@ function AddNotesModal({
           </div>
         </div>
 
-        {/* Notes List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
           {loading ? (
             <div className="space-y-2">
@@ -754,7 +930,6 @@ function AddNotesModal({
           )}
         </div>
 
-        {/* Save Button */}
         <div className="p-4 border-t border-zinc-800">
           <button
             onClick={() => onSave(selectedIds)}

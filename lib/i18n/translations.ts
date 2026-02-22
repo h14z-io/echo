@@ -12,6 +12,40 @@ export const LOCALE_LANGUAGE: Record<Locale, string> = {
   pt: 'Portuguese',
 }
 
+// Broader ISO 639-1 code to language name mapping for detected languages
+export const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  nl: 'Dutch',
+  ru: 'Russian',
+  ja: 'Japanese',
+  ko: 'Korean',
+  zh: 'Chinese',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  tr: 'Turkish',
+  pl: 'Polish',
+  sv: 'Swedish',
+  da: 'Danish',
+  no: 'Norwegian',
+  fi: 'Finnish',
+  cs: 'Czech',
+  ro: 'Romanian',
+  hu: 'Hungarian',
+  el: 'Greek',
+  he: 'Hebrew',
+  th: 'Thai',
+  vi: 'Vietnamese',
+  id: 'Indonesian',
+  ms: 'Malay',
+  uk: 'Ukrainian',
+  ca: 'Catalan',
+}
+
 // Nested translation type - allows dot-notation access
 type NestedStrings = { [key: string]: string | NestedStrings }
 
@@ -141,6 +175,18 @@ const en: NestedStrings = {
     noNotesFound: 'No notes found',
     noNotesAvailable: 'No notes available',
     addNotesToGenerate: 'Add notes to generate insights',
+    noContentToAnalyze: 'No content to analyze',
+    // Assets
+    assets: 'Assets',
+    uploadImages: 'Upload images',
+    compressing: 'Compressing images...',
+    // Diagrams
+    generateDiagram: 'Generate diagram',
+    generatingDiagram: 'Generating diagram...',
+    copyMermaidCode: 'Copy Mermaid code',
+    downloadImage: 'Download as image',
+    diagramRenderError: 'Could not render the diagram',
+    askHint: 'You can also ask for diagrams, e.g. "give me a flowchart of..."',
   },
   settings: {
     title: 'Settings',
@@ -159,7 +205,7 @@ const en: NestedStrings = {
     deleteConfirm: 'Are you sure? This cannot be undone.',
     deleteAll: 'Yes, delete everything',
     about: 'About',
-    version: 'Echo v2.0',
+    version: 'Echo v1.1.3',
     description: 'Voice notes with AI transcription',
     builtWith: 'Built with Next.js + Gemini 2.5 Flash',
   },
@@ -299,6 +345,18 @@ const es: NestedStrings = {
     noNotesFound: 'No se encontraron notas',
     noNotesAvailable: 'No hay notas disponibles',
     addNotesToGenerate: 'Agrega notas para generar análisis',
+    noContentToAnalyze: 'No hay contenido para analizar',
+    // Assets
+    assets: 'Recursos',
+    uploadImages: 'Subir imágenes',
+    compressing: 'Comprimiendo imágenes...',
+    // Diagrams
+    generateDiagram: 'Generar diagrama',
+    generatingDiagram: 'Generando diagrama...',
+    copyMermaidCode: 'Copiar código Mermaid',
+    downloadImage: 'Descargar como imagen',
+    diagramRenderError: 'No se pudo renderizar el diagrama',
+    askHint: 'También puedes pedir diagramas, ej. "dame un diagrama de flujo de..."',
   },
   settings: {
     title: 'Configuración',
@@ -317,7 +375,7 @@ const es: NestedStrings = {
     deleteConfirm: '¿Estás seguro? Esta acción no se puede deshacer.',
     deleteAll: 'Sí, eliminar todo',
     about: 'Acerca de',
-    version: 'Echo v2.0',
+    version: 'Echo v1.1.3',
     description: 'Notas de voz con transcripción IA',
     builtWith: 'Hecho con Next.js + Gemini 2.5 Flash',
   },
@@ -457,6 +515,18 @@ const pt: NestedStrings = {
     noNotesFound: 'Nenhuma nota encontrada',
     noNotesAvailable: 'Nenhuma nota disponível',
     addNotesToGenerate: 'Adicione notas para gerar análises',
+    noContentToAnalyze: 'Nenhum conteúdo para analisar',
+    // Assets
+    assets: 'Recursos',
+    uploadImages: 'Enviar imagens',
+    compressing: 'Comprimindo imagens...',
+    // Diagrams
+    generateDiagram: 'Gerar diagrama',
+    generatingDiagram: 'Gerando diagrama...',
+    copyMermaidCode: 'Copiar código Mermaid',
+    downloadImage: 'Baixar como imagem',
+    diagramRenderError: 'Não foi possível renderizar o diagrama',
+    askHint: 'Você também pode pedir diagramas, ex. "me dê um fluxograma de..."',
   },
   settings: {
     title: 'Configurações',
@@ -475,7 +545,7 @@ const pt: NestedStrings = {
     deleteConfirm: 'Tem certeza? Isso não pode ser desfeito.',
     deleteAll: 'Sim, excluir tudo',
     about: 'Sobre',
-    version: 'Echo v2.0',
+    version: 'Echo v1.1.3',
     description: 'Notas de voz com transcrição IA',
     builtWith: 'Feito com Next.js + Gemini 2.5 Flash',
   },

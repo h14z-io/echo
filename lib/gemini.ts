@@ -5,6 +5,7 @@ export interface TranscriptionResult {
   summary: string
   transcription: string
   tags: string[]
+  detectedLanguage: string
 }
 
 export async function processRecording(
@@ -37,12 +38,14 @@ export interface InsightResult {
 
 export async function generateInsightAnalysis(
   notes: { date: number; title: string; transcription: string }[],
-  locale = 'en'
+  locale = 'en',
+  images?: { base64: string; mimeType: string }[],
+  language?: string
 ): Promise<InsightResult> {
   const response = await fetch('/api/insights/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, locale }),
+    body: JSON.stringify({ notes, images, locale, language }),
   })
 
   if (!response.ok) {
@@ -53,16 +56,46 @@ export async function generateInsightAnalysis(
   return response.json()
 }
 
+export interface DiagramResult {
+  mermaidCode: string
+}
+
+export async function generateDiagram(
+  notes: { date: number; title: string; transcription: string }[],
+  locale = 'en',
+  images?: { base64: string; mimeType: string }[],
+  language?: string
+): Promise<DiagramResult> {
+  const response = await fetch('/api/insights/diagram', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes, images, locale, language }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Diagram generation failed' }))
+    throw new Error(error.error || 'Diagram generation failed')
+  }
+
+  return response.json()
+}
+
+export interface AskResult {
+  content: string
+  mermaidDiagrams: string[]
+}
+
 export async function askInsightQuestion(
   notes: { date: number; title: string; transcription: string }[],
   insightName: string,
   userPrompt: string,
-  locale = 'en'
-): Promise<string> {
+  locale = 'en',
+  language?: string
+): Promise<AskResult> {
   const response = await fetch('/api/insights/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes, insightName, userPrompt, locale }),
+    body: JSON.stringify({ notes, insightName, userPrompt, locale, language }),
   })
 
   if (!response.ok) {
@@ -70,6 +103,5 @@ export async function askInsightQuestion(
     throw new Error(error.error || 'Question failed')
   }
 
-  const data = await response.json()
-  return data.content
+  return response.json()
 }
